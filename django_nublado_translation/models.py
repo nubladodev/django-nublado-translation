@@ -48,7 +48,7 @@ class TranslationSourceModel(models.Model):
     """
 
     # The source language from which the translations are derived.
-    SOURCE_LANGUAGE = app_settings.DJANGO_NUBLADO_TRANSLATION_SOURCE
+    SOURCE_LANGUAGE = app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE
 
     class Meta:
         abstract = True
