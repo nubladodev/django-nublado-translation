@@ -7,7 +7,7 @@ from django_nublado_translation.conf import app_settings
 
 class TestAppSettings:
     """
-    Tests for the blog app settins.
+    Tests for the app settings.
     """
 
     def test_app_settings_prefix(self):

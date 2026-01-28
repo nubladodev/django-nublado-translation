@@ -5,14 +5,24 @@ from django.db.models.base import ModelBase
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from django.utils.functional import cached_property
 
 from django_nublado_translation.conf import app_settings
 
 """
 Simple model translation
 """
-
-TranslationLanguageChoices = settings.TRANSLATION_LANGUAGES_ENUM
+# Translation languages (without source language)
+source_language = app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE
+translation_languages_members = [
+    (key.replace("-", "_").upper(), (key, label)) 
+    for key, label in settings.LANGUAGES
+    if key != source_language
+]
+translation_languages_enum = models.TextChoices(
+    "TranslationLanguagesEnum",
+    translation_languages_members,
+)
 
 
 class TranslationLanguageModel(models.Model):
@@ -22,12 +32,11 @@ class TranslationLanguageModel(models.Model):
     omitting the default language.
     """
 
-    LanguageChoices = TranslationLanguageChoices
+    LanguageChoices = translation_languages_enum
 
     language = models.CharField(
-        max_length=2,
-        choices=LanguageChoices,
-        default=LanguageChoices.ES,
+        max_length=8,
+        choices=LanguageChoices, # No default. Must be provided.
     )
 
     class Meta:
@@ -36,7 +45,7 @@ class TranslationLanguageModel(models.Model):
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_language_valid",
                 # Hacky, since LanguageChoices can't be referred to in model.
-                condition=models.Q(language__in=TranslationLanguageChoices.values),
+                condition=models.Q(language__in=list(translation_languages_enum.values)),
             )
         ]
 
@@ -47,13 +56,10 @@ class TranslationSourceModel(models.Model):
     that are to be translated.
     """
 
-    # The source language from which the translations are derived.
-    SOURCE_LANGUAGE = app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE
-
     class Meta:
         abstract = True
 
-    @property
+    @cached_property
     def translations_dict(self):
         """
         Return a dict of translations
@@ -63,6 +69,18 @@ class TranslationSourceModel(models.Model):
             translation.language: translation for translation in self.translations.all()
         }
         return trans_dict
+
+    def get_translation(self, language, fallback=True):
+        """
+        Return the translation object for the given language,
+        If not found, optionally fall back to source object.
+        """
+        translation = self.translations_dict.get(language)
+        if translation:
+            return translation
+        if fallback:
+            return self
+        return None
 
 
 class TranslationBase(ModelBase):
@@ -74,7 +92,7 @@ class TranslationBase(ModelBase):
     way to do it, but this simple approach works. For now.
     """
 
-    def __new__(cls, name, bases, attrs, **kwargs):
+    def __new__(mcls, name, bases, attrs, **kwargs):
         super_new = super().__new__
         attr_meta = attrs.get("Meta", None)
 
@@ -84,11 +102,11 @@ class TranslationBase(ModelBase):
             )
 
         if attr_meta.abstract:
-            return super_new(cls, name, bases, attrs)
+            return super_new(mcls, name, bases, attrs)
 
-        if "TranslationModel" not in [b.__name__ for b in bases]:
-            # This is not a TranslationModel subclass.
-            raise ImproperlyConfigured("Model must be subclass of TranslationModel.")
+        # Make sure the translation model subclasses TranslationModel.
+        if not any(issubclass(base, TranslationModel) for base in bases if isinstance(base, type)):
+            raise ImproperlyConfigured("Model must subclass TranslationModel.")
 
         source_model = attrs.get("source_model", None)
 
@@ -113,30 +131,61 @@ class TranslationBase(ModelBase):
         unique_fields = []
 
         if translation_fields:
-            for field in source_model._meta.local_fields:
-                if field.name in translation_fields:
-                    # Copy field to translation model.
-                    field_copy = copy.deepcopy(field)
-                    if field._unique:
-                        # If any fields are unique, "deuniqueify" them to
-                        # later make them unique by language in the
-                        # translation model.
-                        field_copy._unique = False
-                        unique_fields.append(field_copy.name)
-                    attrs[field.name] = field_copy
+            source_fields = {
+                f.name: f
+                for f in source_model._meta.concrete_fields
+            }
 
-        if hasattr(attr_meta, "unique_together"):
-            attr_meta.unique_together += ("language", "source")
-        else:
-            attr_meta.unique_together = (("language", "source"),)
+            for field_name in translation_fields:
+                # Make sure values in translation_fields have corresponding fields
+                # in source_model.
+                source_field = source_fields.get(field_name)
+                if not source_field:
+                    raise ImproperlyConfigured(
+                        f"Field '{field_name}' does not exist in source model '{source_model.__name__}'"
+                    )
+                if source_field.primary_key:
+                    raise ImproperlyConfigured(
+                        "Primary key fields cannot be translated."
+                    )
+                if source_field.is_relation:
+                    raise ImproperlyConfigured(
+                        f"Relational field '{field_name}' cannot be translated."
+                    )
 
-        # Make unique fields from source unique together with
-        # language in translation.
-        if unique_fields:
-            for field in unique_fields:
-                attr_meta.unique_together += (("language", field),)
+                # Copy field to translation model.
+                field_copy = copy.deepcopy(source_field)
 
-        return super_new(cls, name, bases, attrs, **kwargs)
+                # Handle unique fields by making them unique per language.
+                if getattr(field_copy, "_unique", False):
+                    field_copy._unique = False
+                    unique_fields.append(field_copy.name)
+
+                # Add the copied field to the translation model attributes.
+                attrs[field_name] = field_copy
+
+        # Make language and source unique together
+        if not hasattr(attr_meta, "constraints") or attr_meta.constraints is None:
+            attr_meta.constraints = []
+
+        # One translation per language per source
+        attr_meta.constraints.append(
+            models.UniqueConstraint(
+                fields=["language", "source"],
+                name=f"{source_model._meta.db_table}_language_source_unique",
+            )
+        )
+
+        # Unique fields from source unique per language
+        for field in unique_fields:
+            attr_meta.constraints.append(
+                models.UniqueConstraint(
+                    fields=['language', field],
+                    name=f"{source_model._meta.db_table}_language_{field}_unique",
+                )
+            )
+
+        return super_new(mcls, name, bases, attrs, **kwargs)
 
 
 class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
@@ -158,8 +207,6 @@ class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
     source_name = "source"
 
     # The names of the fields in the source model to be copied and translated.
-    # If any of the translatable fields in the source model are unique,
-    # their copies are made unique by language in the translation model.
     translation_fields = []
 
     # The name of the reverse relation of the translations in the source model.

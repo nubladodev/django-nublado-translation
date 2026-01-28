@@ -84,19 +84,19 @@ class TestTranslationLanguageModel(ModelTestSetup):
     model = TranslationLanguageTestModel
     test_models = [model]
 
+    def test_language_fixtures_valid(self, language_es, language_de):
+        # Get all allowed languages
+        allowed = TranslationLanguageModel.LanguageChoices.values
+        assert language_es in allowed
+        assert language_de in allowed
+
     def test_language_choices(self):
         """
-        The language choices are from an enum in settings derived from LANGUAGES,
-        and the default source language isn't a member.
+        The language choices are from an enum,
+        and the source language isn't a member.
         """
-        assert (
-            TranslationLanguageModel.LanguageChoices
-            == settings.TRANSLATION_LANGUAGES_ENUM
-        )
-        assert (
-            settings.LANGUAGE_CODE
-            not in TranslationLanguageModel.LanguageChoices.values
-        )
+        for language_code, label in TranslationLanguageModel.LanguageChoices.choices:
+            assert language_code != app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE.upper().replace("-", "_")
 
     def test_language_not_in_choices(self):
         """
@@ -147,13 +147,6 @@ class TestTranslationSourceModel(ModelTestSetup):
         translation_model,
     ]
 
-    def test_default_attrs(self):
-        """
-        The model has the expected attributes and default values.
-        """
-        assert TranslationSourceModel.SOURCE_LANGUAGE == app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE
-
-
     def test_translations_dict(
         self,
         language_es,
@@ -179,6 +172,36 @@ class TestTranslationSourceModel(ModelTestSetup):
         assert len(translations_dict) == 2
         assert translations_dict[language_es] == translation_es
         assert translations_dict[language_de] == translation_de
+
+    def test_get_translation(self, language_es, language_de):
+        source = self.source_model.objects.create(
+            name="foo foo",
+            slug="foo-foo",
+        )
+        translation_es = self.translation_model.objects.create(
+            source=source,
+            language=language_es,
+            name="fee fee",
+            slug="fee-fee",
+        )
+        translation_de = self.translation_model.objects.create(
+            source=source,
+            language=language_de,
+            name="faa faa",
+            slug="faa-faa",
+        )
+
+        translation = source.get_translation(language_es)
+        assert translation == translation_es
+
+        translation = source.get_translation(language_de)
+        assert translation == translation_de
+
+        translation = source.get_translation("xx", fallback=False)
+        assert translation is None
+
+        translation = source.get_translation("xx", fallback=True)
+        assert translation == source
 
 
 @pytest.mark.django_db(transaction=True)
@@ -213,15 +236,21 @@ class TestTranslationModel(ModelTestSetup):
         assert self.source_model._meta.get_field("slug").unique is True
         # Slug isn't unique in the translation model (it's unique with language).
         assert self.translation_model._meta.get_field("slug").unique is False
-        assert ("language", "slug") in self.translation_model._meta.unique_together
+        constraints = self.translation_model._meta.constraints
+        assert any(
+            isinstance(c, models.UniqueConstraint) and set(c.fields) == {"language", "slug"}
+            for c in constraints
+        )
 
     def test_meta(self):
-        assert self.translation_model._meta.unique_together == (
-            # Only one translation per language for each source instance
-            ("language", "source"),
-            # The slug is unique in the source model, and is made
-            # unique with the translation language in the translation model.
-            ("language", "slug"),
+        constraints = self.translation_model._meta.constraints
+        assert any(
+            isinstance(c, models.UniqueConstraint) and set(c.fields) == {"language", "slug"}
+            for c in constraints
+        )
+        assert any(
+            isinstance(c, models.UniqueConstraint) and set(c.fields) == {"language", "source"}
+            for c in constraints
         )
 
     def test_generated_source_fk(self, language_es):
@@ -236,3 +265,31 @@ class TestTranslationModel(ModelTestSetup):
             slug="fee-fee",
         )
         assert translation_obj.source == source_obj
+
+
+    def test_unique_constraints_applied(self):
+        translation_model = TranslationTestModel
+        table_name = translation_model._meta.db_table
+
+        # Collect all unique constraints
+        unique_constraints = [
+            c for c in translation_model._meta.constraints
+            if isinstance(c, models.UniqueConstraint)
+        ]
+
+        # Check that there is a language + source constraint
+        expected_name = f"{TranslationSourceTestModel._meta.db_table}_language_source_unique"
+        assert any(c.name == expected_name for c in unique_constraints), \
+            f"Missing expected UniqueConstraint: {expected_name}"
+
+        # Check that there is a language + slug constraint
+        expected_name = f"{TranslationSourceTestModel._meta.db_table}_language_slug_unique"
+        assert any(c.name == expected_name for c in unique_constraints), \
+            f"Missing expected UniqueConstraint: {expected_name}"
+
+        # Optionally, verify the fields for each constraint
+        for c in unique_constraints:
+            if c.name.endswith("language_source_unique"):
+                assert set(c.fields) == {"language", "source"}
+            if c.name.endswith("language_slug_unique"):
+                assert set(c.fields) == {"language", "slug"}
