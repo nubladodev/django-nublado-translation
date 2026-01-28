@@ -153,6 +153,7 @@ class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
     # The source model to be translated.
     # It must subclass the abstract model TranslationSourceModel.
     source_model = None
+
     # The name of the foreign key referring to the source model.
     source_name = "source"
 
