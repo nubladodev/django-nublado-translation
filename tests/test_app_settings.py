@@ -14,4 +14,7 @@ class TestAppSettings:
         assert app_settings.app_settings_prefix == "NUBLADO_TRANSLATION_"
 
     def test_app_settings_values(self):
-        assert app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE == django_settings.LANGUAGE_CODE
+        assert (
+            app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE
+            == django_settings.LANGUAGE_CODE
+        )

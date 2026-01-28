@@ -1,8 +1,6 @@
-
 from django.conf import settings as django_settings
 
 from django_nublado_core.conf import AppSettingsBase
-
 
 # App settings prefix
 settings_prefix = "NUBLADO_TRANSLATION_"

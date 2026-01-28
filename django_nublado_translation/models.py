@@ -15,7 +15,7 @@ Simple model translation
 # Translation languages (without source language)
 source_language = app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE
 translation_languages_members = [
-    (key.replace("-", "_").upper(), (key, label)) 
+    (key.replace("-", "_").upper(), (key, label))
     for key, label in settings.LANGUAGES
     if key != source_language
 ]
@@ -36,7 +36,7 @@ class TranslationLanguageModel(models.Model):
 
     language = models.CharField(
         max_length=8,
-        choices=LanguageChoices, # No default. Must be provided.
+        choices=LanguageChoices,  # No default. Must be provided.
     )
 
     class Meta:
@@ -45,7 +45,9 @@ class TranslationLanguageModel(models.Model):
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_language_valid",
                 # Hacky, since LanguageChoices can't be referred to in model.
-                condition=models.Q(language__in=list(translation_languages_enum.values)),
+                condition=models.Q(
+                    language__in=list(translation_languages_enum.values)
+                ),
             )
         ]
 
@@ -109,7 +111,11 @@ class TranslationBase(ModelBase):
             return super_new(mcls, name, bases, attrs)
 
         # Make sure the translation model subclasses TranslationModel.
-        if not any(issubclass(base, TranslationModel) for base in bases if isinstance(base, type)):
+        if not any(
+            issubclass(base, TranslationModel)
+            for base in bases
+            if isinstance(base, type)
+        ):
             raise ImproperlyConfigured("Model must subclass TranslationModel.")
 
         source_model = attrs.get("source_model", None)
@@ -135,10 +141,7 @@ class TranslationBase(ModelBase):
         unique_fields = []
 
         if translation_fields:
-            source_fields = {
-                f.name: f
-                for f in source_model._meta.concrete_fields
-            }
+            source_fields = {f.name: f for f in source_model._meta.concrete_fields}
 
             for field_name in translation_fields:
                 # Make sure values in translation_fields have corresponding fields
@@ -183,7 +186,7 @@ class TranslationBase(ModelBase):
         for field in unique_fields:
             constraints.append(
                 models.UniqueConstraint(
-                    fields=['language', field],
+                    fields=["language", field],
                     name=f"{source_model._meta.db_table}_language_{field}_unique",
                 )
             )
@@ -196,7 +199,7 @@ class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
     """
     An abstract model for model field translations.
 
-    A source foreign key (default "source" or named by attribute source_name) is automatically 
+    A source foreign key (default "source" or named by attribute source_name) is automatically
     generated and refers to the the source model, a subclass of TranslationSourceModel. The reverse relation is
     named "translations" by default.
     """

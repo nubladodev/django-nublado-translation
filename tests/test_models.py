@@ -12,7 +12,6 @@ from django_nublado_translation.models import (
 )
 from django_nublado_translation.conf import app_settings
 
-
 # Test Models
 test_app_label = "test_django_nublado_translation"
 
@@ -53,7 +52,8 @@ class TranslationSourceTestModel(
     """
     A test model that subclasses TranslationSourceModel.
     """
-    # To do: Test overridden source_name and translations_name attributes. 
+
+    # To do: Test overridden source_name and translations_name attributes.
     name = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250, unique=True)
 
@@ -96,7 +96,12 @@ class TestTranslationLanguageModel(ModelTestSetup):
         and the source language isn't a member.
         """
         for language_code, label in TranslationLanguageModel.LanguageChoices.choices:
-            assert language_code != app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE.upper().replace("-", "_")
+            assert (
+                language_code
+                != app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE.upper().replace(
+                    "-", "_"
+                )
+            )
 
     def test_language_not_in_choices(self):
         """
@@ -253,18 +258,21 @@ class TestTranslationModel(ModelTestSetup):
         assert self.translation_model._meta.get_field("slug").unique is False
         constraints = self.translation_model._meta.constraints
         assert any(
-            isinstance(c, models.UniqueConstraint) and set(c.fields) == {"language", "slug"}
+            isinstance(c, models.UniqueConstraint)
+            and set(c.fields) == {"language", "slug"}
             for c in constraints
         )
 
     def test_meta(self):
         constraints = self.translation_model._meta.constraints
         assert any(
-            isinstance(c, models.UniqueConstraint) and set(c.fields) == {"language", "slug"}
+            isinstance(c, models.UniqueConstraint)
+            and set(c.fields) == {"language", "slug"}
             for c in constraints
         )
         assert any(
-            isinstance(c, models.UniqueConstraint) and set(c.fields) == {"language", "source"}
+            isinstance(c, models.UniqueConstraint)
+            and set(c.fields) == {"language", "source"}
             for c in constraints
         )
 
@@ -281,26 +289,32 @@ class TestTranslationModel(ModelTestSetup):
         )
         assert translation_obj.source == source_obj
 
-
     def test_unique_constraints_applied(self):
         translation_model = TranslationTestModel
         table_name = translation_model._meta.db_table
 
         # Collect all unique constraints
         unique_constraints = [
-            c for c in translation_model._meta.constraints
+            c
+            for c in translation_model._meta.constraints
             if isinstance(c, models.UniqueConstraint)
         ]
 
         # Check that there is a language + source constraint
-        expected_name = f"{TranslationSourceTestModel._meta.db_table}_language_source_unique"
-        assert any(c.name == expected_name for c in unique_constraints), \
-            f"Missing expected UniqueConstraint: {expected_name}"
+        expected_name = (
+            f"{TranslationSourceTestModel._meta.db_table}_language_source_unique"
+        )
+        assert any(
+            c.name == expected_name for c in unique_constraints
+        ), f"Missing expected UniqueConstraint: {expected_name}"
 
         # Check that there is a language + slug constraint
-        expected_name = f"{TranslationSourceTestModel._meta.db_table}_language_slug_unique"
-        assert any(c.name == expected_name for c in unique_constraints), \
-            f"Missing expected UniqueConstraint: {expected_name}"
+        expected_name = (
+            f"{TranslationSourceTestModel._meta.db_table}_language_slug_unique"
+        )
+        assert any(
+            c.name == expected_name for c in unique_constraints
+        ), f"Missing expected UniqueConstraint: {expected_name}"
 
         # Optionally, verify the fields for each constraint
         for c in unique_constraints:
