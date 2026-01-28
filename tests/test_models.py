@@ -53,7 +53,7 @@ class TranslationSourceTestModel(
     """
     A test model that subclasses TranslationSourceModel.
     """
-
+    # To do: Test overridden source_name and translations_name attributes. 
     name = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250, unique=True)
 
@@ -172,6 +172,21 @@ class TestTranslationSourceModel(ModelTestSetup):
         assert len(translations_dict) == 2
         assert translations_dict[language_es] == translation_es
         assert translations_dict[language_de] == translation_de
+
+    def test_has_translation(self, language_es, language_de):
+        source = self.source_model.objects.create(
+            name="foo foo",
+            slug="foo-foo",
+        )
+        translation_es = self.translation_model.objects.create(
+            source=source,
+            language=language_es,
+            name="fee fee",
+            slug="fee-fee",
+        )
+
+        assert source.has_translation(language_es) is True
+        assert source.has_translation(language_de) is False
 
     def test_get_translation(self, language_es, language_de):
         source = self.source_model.objects.create(

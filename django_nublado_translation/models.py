@@ -82,26 +82,30 @@ class TranslationSourceModel(models.Model):
             return self
         return None
 
+    def has_translation(self, language) -> bool:
+        """
+        Check if a translation exists for the given language code.
+        """
+
+        return language in self.translations_dict
+
 
 class TranslationBase(ModelBase):
     """
     A base for TranslationModel.
-    Thanks to django-i18n-model (an older for the idea. I wanted to create a simple
-    model-translation system without all the extra baggage of adding extra fields
+    I wanted to create a simple model-translation system without all the baggage of adding extra fields
     to the source model or getting hacky with Generic Foreign Keys. I should find a better
     way to do it, but this simple approach works. For now.
     """
 
     def __new__(mcls, name, bases, attrs, **kwargs):
         super_new = super().__new__
-        attr_meta = attrs.get("Meta", None)
 
-        if not attr_meta:
-            raise ImproperlyConfigured(
-                "Subclasses of TranslationModel must have a Meta class."
-            )
+        # Inner Meta class from the model body (not Model._meta).
+        meta_class = attrs.setdefault("Meta", type("Meta", (), {}))
 
-        if attr_meta.abstract:
+        # Exit if subclass is an abstact model.
+        if getattr(meta_class, "abstract", False):
             return super_new(mcls, name, bases, attrs)
 
         # Make sure the translation model subclasses TranslationModel.
@@ -111,7 +115,7 @@ class TranslationBase(ModelBase):
         source_model = attrs.get("source_model", None)
 
         if not source_model:
-            raise ImproperlyConfigured("Source model is required.")
+            raise ImproperlyConfigured("attr: source_model is required.")
         if not issubclass(source_model, TranslationSourceModel):
             raise ValueError("Source model must subclass TranslationSourceModel.")
 
@@ -157,33 +161,33 @@ class TranslationBase(ModelBase):
                 field_copy = copy.deepcopy(source_field)
 
                 # Handle unique fields by making them unique per language.
-                if getattr(field_copy, "_unique", False):
-                    field_copy._unique = False
+                if field_copy.unique:
+                    field_copy.unique = False
                     unique_fields.append(field_copy.name)
 
                 # Add the copied field to the translation model attributes.
                 attrs[field_name] = field_copy
 
         # Make language and source unique together
-        if not hasattr(attr_meta, "constraints") or attr_meta.constraints is None:
-            attr_meta.constraints = []
+        constraints = list(getattr(meta_class, "constraints", []))
 
         # One translation per language per source
-        attr_meta.constraints.append(
+        constraints.append(
             models.UniqueConstraint(
-                fields=["language", "source"],
+                fields=["language", source_name],
                 name=f"{source_model._meta.db_table}_language_source_unique",
             )
         )
 
         # Unique fields from source unique per language
         for field in unique_fields:
-            attr_meta.constraints.append(
+            constraints.append(
                 models.UniqueConstraint(
                     fields=['language', field],
                     name=f"{source_model._meta.db_table}_language_{field}_unique",
                 )
             )
+        meta_class.constraints = constraints
 
         return super_new(mcls, name, bases, attrs, **kwargs)
 
@@ -192,11 +196,9 @@ class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
     """
     An abstract model for model field translations.
 
-    A foreign key named "source" is automatically generated and refers to the the
-    source model, a subclass of TranslationSourceModel. The reverse relation is
-    named "translations."
-
-    Subclasses of TranslationModel must have a Meta class.
+    A source foreign key (default "source" or named by attribute source_name) is automatically 
+    generated and refers to the the source model, a subclass of TranslationSourceModel. The reverse relation is
+    named "translations" by default.
     """
 
     # The source model to be translated.
@@ -206,11 +208,11 @@ class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
     # The name of the foreign key referring to the source model.
     source_name = "source"
 
-    # The names of the fields in the source model to be copied and translated.
-    translation_fields = []
-
     # The name of the reverse relation of the translations in the source model.
     translations_name = "translations"
+
+    # The names of the fields in the source model to be copied and translated.
+    translation_fields = []
 
     class Meta(TranslationLanguageModel.Meta):
         abstract = True
