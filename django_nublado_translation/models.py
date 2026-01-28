@@ -70,7 +70,7 @@ class TranslationSourceModel(models.Model):
         }
         return trans_dict
 
-    def get_translation(self, language, fallback=True):
+    def get_translation(self, language, *, fallback=True):
         """
         Return the translation object for the given language,
         If not found, optionally fall back to source object.
