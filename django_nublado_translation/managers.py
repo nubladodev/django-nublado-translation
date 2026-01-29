@@ -2,7 +2,7 @@ from django.db import models
 from django.db.models import Prefetch
 
 
-class TranslationSourceQuerySet(TranslationSourceQuerySet):
+class TranslationSourceQuerySet(models.QuerySet):
     def prefetch_translations(self, queryset=None):
         """
         Prefetch translations using an optional queryset.

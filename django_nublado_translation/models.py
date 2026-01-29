@@ -4,7 +4,7 @@ from django.db import models
 from django.db.models.base import ModelBase
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import get_language, gettext_lazy as _
 from django.utils.functional import cached_property
 
 from django_nublado_translation.conf import app_settings
@@ -74,7 +74,7 @@ class TranslationSourceModel(models.Model):
 
     def get_translation(self, language, *, fallback=True):
         """
-        Return the translation object for the given language,
+        Return the translation object for the given language.
         If not found, optionally fall back to source object.
         """
         translation = self.translations_dict.get(language)
@@ -83,6 +83,15 @@ class TranslationSourceModel(models.Model):
         if fallback:
             return self
         return None
+
+    # To do: Maybe think of a better name for this method?
+    def get_current_translation(self, *, fallback=True):
+        """
+        Return the translation object for the current language.
+        If not found, optionally fall back to source object.
+        """
+        language = get_language()
+        return self.get_translation(language, fallback=fallback)
 
     def has_translation(self, language) -> bool:
         """

@@ -1,81 +1,23 @@
 import pytest
 
-from django.db import models, connection
+from django.db import models
 from django.db.utils import IntegrityError
 from django.core.exceptions import ValidationError
+from django.utils.translation import activate
 from django.conf import settings
 
 from django_nublado_translation.models import (
-    TranslationLanguageModel,
-    TranslationSourceModel,
     TranslationModel,
+    TranslationLanguageModel,
 )
 from django_nublado_translation.conf import app_settings
 
-# Test Models
-test_app_label = "test_django_nublado_translation"
-
-
-class ModelTestSetup:
-    test_models = []
-
-    def setup_method(self, method):
-        with connection.schema_editor() as schema_editor:
-            schema_editor.connection.in_atomic_block = False
-            for model in self.test_models:
-                schema_editor.create_model(model)
-
-    def teardown_method(self, method):
-        with connection.schema_editor() as schema_editor:
-            schema_editor.connection.in_atomic_block = False
-            for model in self.test_models:
-                schema_editor.delete_model(model)
-            schema_editor.connection.in_atomic_block = True
-
-
-class TranslationLanguageTestModel(TranslationLanguageModel):
-    """
-    This is a test model that subclasses the
-    abstract model LanguageModel.
-    """
-
-    name = models.CharField(max_length=200, unique=True)
-
-    class Meta(TranslationLanguageModel.Meta):
-        db_table = "test_translation_language_model"
-        app_label = test_app_label
-
-
-class TranslationSourceTestModel(
-    TranslationSourceModel,
-):
-    """
-    A test model that subclasses TranslationSourceModel.
-    """
-
-    # To do: Test overridden source_name and translations_name attributes.
-    name = models.CharField(max_length=250)
-    slug = models.SlugField(max_length=250, unique=True)
-
-    class Meta:
-        db_table = "test_translation_source_model"
-        app_label = test_app_label
-
-
-class TranslationTestModel(
-    TranslationModel,
-):
-    """
-    A test model that subclasses TranslationModel
-    """
-
-    source_model = TranslationSourceTestModel
-    translation_fields = ["name", "slug"]
-
-    class Meta(TranslationModel.Meta):
-        db_table = "test_translation_model"
-        app_label = test_app_label
-
+from .test_project.models import (
+    ModelTestSetup,
+    TranslationLanguageTestModel,
+    TranslationSourceTestModel,
+    TranslationTestModel,
+)
 
 # Tests
 @pytest.mark.django_db(transaction=True)
@@ -191,7 +133,8 @@ class TestTranslationSourceModel(ModelTestSetup):
         )
 
         assert source.has_translation(language_es) is True
-        assert source.has_translation(language_de) is False
+        assert source.has_translation(language_de) is False     
+        assert source.has_translation("xx") is False
 
     def test_get_translation(self, language_es, language_de):
         source = self.source_model.objects.create(
@@ -217,12 +160,54 @@ class TestTranslationSourceModel(ModelTestSetup):
         translation = source.get_translation(language_de)
         assert translation == translation_de
 
+        # Don't fall back to source. Return None if no translation is found..
         translation = source.get_translation("xx", fallback=False)
         assert translation is None
 
+        # Fall back to source if no translation is found.
         translation = source.get_translation("xx", fallback=True)
         assert translation == source
 
+    def test_get_current_translation(self, language_es, language_de):
+        """
+        Get the translation of the current langauge.
+        """
+        source = self.source_model.objects.create(
+            name="foo foo",
+            slug="foo-foo",
+        )
+        translation_es = self.translation_model.objects.create(
+            source=source,
+            language=language_es,
+            name="fee fee",
+            slug="fee-fee",
+        )
+
+        # Default language
+        translation = source.get_current_translation()
+        assert translation == source
+        translation = source.get_current_translation(fallback=True)
+        assert translation == source
+        translation = source.get_current_translation(fallback=False)
+        assert translation == None
+
+        # es
+        activate(language_es)
+        translation = source.get_current_translation()
+        assert translation == translation_es
+        translation = source.get_current_translation(fallback=True)
+        assert translation == translation_es
+        translation = source.get_current_translation(fallback=False)
+        assert translation == translation_es
+
+        # de
+        activate(language_de)
+        translation = source.get_current_translation()
+        assert translation == source
+        translation = source.get_current_translation(fallback=True)
+        assert translation == source
+        translation = source.get_current_translation(fallback=False)
+        assert translation == None
 
 @pytest.mark.django_db(transaction=True)
 class TestTranslationModel(ModelTestSetup):
