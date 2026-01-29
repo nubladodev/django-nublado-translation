@@ -84,6 +84,7 @@ class TestTranslationSourceManager(ModelTestSetup):
         # Current language: default (en)
         source = self.source_model.objects.prefetch_current_translation().get(pk=source_pk)
         assert source.translations.count() == 0
+        assert source.translations.first() is None
 
         # Current language: es
         activate(language_es)
