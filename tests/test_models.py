@@ -10,9 +10,9 @@ from django_nublado_translation.models import (
     TranslationModel,
     TranslationLanguageModel,
 )
-from django_nublado_translation.conf import app_settings
+from django_nublado_translation.conf.app_settings import app_settings
 
-from .test_project.models import (
+from .models import (
     ModelTestSetup,
     TranslationLanguageTestModel,
     TranslationSourceTestModel,
@@ -40,7 +40,7 @@ class TestTranslationLanguageModel(ModelTestSetup):
         for language_code, label in TranslationLanguageModel.LanguageChoices.choices:
             assert (
                 language_code
-                != app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE.upper().replace(
+                != app_settings.SOURCE_LANGUAGE.upper().replace(
                     "-", "_"
                 )
             )

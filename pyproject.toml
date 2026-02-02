@@ -1,39 +1,25 @@
 [project]
 name = "django-nublado-translation"
-version = "0.1"
+version = "0.1.0"
+description = "A Django app for simple model-field translations."
+authors = [
+    {name = "Foo Foo", email = "foo@foo.com"},
+]
+readme = "README.md"
+license = "BSD-3-Clause"
+
+requires-python = ">= 3.12"
+
 dependencies = [
     "django",
     "django-nublado-core",
 ]
-description = "A Django app for simple model-field translations."
-readme = "README.md"
-license = "BSD-3-Clause"
-requires-python = ">= 3.12"
-authors = [
-    {name = "Christopher Nublado", email = "nublado.dev@gmail.com"},
-]
-classifiers = [
-    "Environment :: Web Environment",
-    "Framework :: Django",
-    "Framework :: Django :: 5.0", 
-    "Intended Audience :: Developers",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Topic :: Internet :: WWW/HTTP",
-    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
-]
 
-[build-system]
-requires = ["setuptools>=77.0.3"]
-build-backend = "setuptools.build_meta"
+[tool.setuptools]
+package-dir = {"" = "src"}
 
-[project.urls]
-Homepage = "https://www.example.com/"
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [project.optional-dependencies]
 test = [
@@ -41,8 +27,17 @@ test = [
     "pytest-django",
     "pytest-mock",
     "pytest-cov",
+    "pytest-html",
     "psycopg",
 ]
 
 [tool.pytest.ini_options]
+python_files = ["test_*.py"]
 pythonpath = ["."]
+
+addopts = [
+    "--cov=django_nublado_core",
+    "--cov-report=term-missing",
+    # "--html=tests/reports/coverage/pytest.html",
+]
+

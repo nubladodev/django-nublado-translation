@@ -7,13 +7,13 @@ from django.conf import settings
 from django.utils.translation import get_language, gettext_lazy as _
 from django.utils.functional import cached_property
 
-from django_nublado_translation.conf import app_settings
+from django_nublado_translation.conf.app_settings import app_settings
 
 """
 Simple model translation
 """
 # Translation languages (without source language)
-source_language = app_settings.NUBLADO_TRANSLATION_SOURCE_LANGUAGE
+source_language = app_settings.SOURCE_LANGUAGE
 translation_languages_members = [
     (key.replace("-", "_").upper(), (key, label))
     for key, label in settings.LANGUAGES

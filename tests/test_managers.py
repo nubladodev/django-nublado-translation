@@ -2,7 +2,7 @@ import pytest
 
 from django.utils.translation import activate
 
-from .test_project.models import (
+from .models import (
     ModelTestSetup,
     TranslationSourceTestModel,
     TranslationTestModel,
