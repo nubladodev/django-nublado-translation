@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from django.conf import settings as django_settings
 
-from django_nublado_core.conf.loader import load_app_settings
+from django_nublado_core.conf.base import AppSettings
 
 # The app's settings dict name
 SETTINGS_DICT_NAME = "DJANGO_NUBLADO_TRANSLATION"
@@ -14,13 +14,13 @@ SETTINGS_DEFAULTS = {
 
 
 @dataclass(frozen=True)
-class AppSettings:
+class AppData:
     SOURCE_LANGUAGE: str
 
 
-app_settings = load_app_settings(
+app_settings = AppSettings(
     defaults=SETTINGS_DEFAULTS,
     settings_dict_name=SETTINGS_DICT_NAME,
-    cls=AppSettings,
+    cls=AppData,
 )
 
