@@ -3,7 +3,7 @@ name = "django-nublado-translation"
 version = "0.1.0"
 description = "A Django app for simple model-field translations."
 authors = [
-    {name = "Foo Foo", email = "foo@foo.com"},
+    {name = "C Nublado"},
 ]
 readme = "README.md"
 license = "BSD-3-Clause"
@@ -12,7 +12,8 @@ requires-python = ">= 3.12"
 
 dependencies = [
     "django",
-    "django-nublado-core",
+    "django-nublado-core >=0.3.0, <0.4.0",
+
 ]
 
 [tool.setuptools]
@@ -36,7 +37,7 @@ python_files = ["test_*.py"]
 pythonpath = ["."]
 
 addopts = [
-    "--cov=django_nublado_core",
+    "--cov=django_nublado_translation",
     "--cov-report=term-missing",
     # "--html=tests/reports/coverage/pytest.html",
 ]

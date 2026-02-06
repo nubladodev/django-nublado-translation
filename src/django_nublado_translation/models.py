@@ -3,36 +3,25 @@ import copy
 from django.db import models
 from django.db.models.base import ModelBase
 from django.core.exceptions import ImproperlyConfigured
-from django.conf import settings
 from django.utils.translation import get_language, gettext_lazy as _
 from django.utils.functional import cached_property
 
-from django_nublado_translation.conf.app_settings import app_settings
-
-"""
-Simple model translation
-"""
-# Translation languages (without source language)
-source_language = app_settings.SOURCE_LANGUAGE
-translation_languages_members = [
-    (key.replace("-", "_").upper(), (key, label))
-    for key, label in settings.LANGUAGES
-    if key != source_language
-]
-translation_languages_enum = models.TextChoices(
-    "TranslationLanguagesEnum",
-    translation_languages_members,
-)
+from django_nublado_translation.utils import get_translation_languages_enum
 
 
 class TranslationLanguageModel(models.Model):
     """
-    An abstract model that provides a language choices
-    field populated by the project's translation language settings, typically
-    omitting the default language.
+    An abstract base model that provides a language field for translations.
+
+    The language choices are populated from the project's translation
+    language settings, excluding the source language.
+
+    Note:
+        Language choices are not enforced at the database level.
+        Developers may add constraints if needed.
     """
 
-    LanguageChoices = translation_languages_enum
+    LanguageChoices = get_translation_languages_enum()
 
     language = models.CharField(
         max_length=8,
@@ -41,21 +30,11 @@ class TranslationLanguageModel(models.Model):
 
     class Meta:
         abstract = True
-        constraints = [
-            models.CheckConstraint(
-                name="%(app_label)s_%(class)s_language_valid",
-                # Hacky, since LanguageChoices can't be referred to in model.
-                condition=models.Q(
-                    language__in=list(translation_languages_enum.values)
-                ),
-            )
-        ]
 
 
 class TranslationSourceModel(models.Model):
     """
-    An abstract model for subclassed models
-    that are to be translated.
+    An abstract base model for objects that can be translated.
     """
 
     class Meta:
@@ -64,38 +43,48 @@ class TranslationSourceModel(models.Model):
     @cached_property
     def translations_dict(self):
         """
-        Return a dict of translations
-        indexed by language.
+        Return translations indexed by language code.
+
+        Returns:
+            dict[str, TranslationModel]: Mapping of language codes to
+            translation instances.
         """
         trans_dict = {
             translation.language: translation for translation in self.translations.all()
         }
         return trans_dict
 
-    def get_translation(self, language, *, fallback=True):
+    def get_translation(self, language):
         """
-        Return the translation object for the given language.
-        If not found, optionally fall back to source object.
-        """
-        translation = self.translations_dict.get(language)
-        if translation:
-            return translation
-        if fallback:
-            return self
-        return None
+        Return the translation for the given language.
 
-    # To do: Maybe think of a better name for this method?
-    def get_current_translation(self, *, fallback=True):
+        Args:
+            language (str): Language code
+
+        Returns:
+            TranslationModel | None: The translation instance or None if missing.
         """
-        Return the translation object for the current language.
-        If not found, optionally fall back to source object.
+        return self.translations_dict.get(language)
+
+    def get_current_translation(self):
+        """
+        Return the translation for the current language.
+
+        Returns:
+            TranslationModel | None: The translation instance or None if missing.
         """
         language = get_language()
-        return self.get_translation(language, fallback=fallback)
+        return self.get_translation(language)
 
     def has_translation(self, language) -> bool:
         """
-        Check if a translation exists for the given language code.
+        Check whether a translation exists for a given language.
+
+        Args:
+            language (str): Language code
+
+        Returns:
+            True if a translation exists.
         """
 
         return language in self.translations_dict
@@ -103,10 +92,13 @@ class TranslationSourceModel(models.Model):
 
 class TranslationBase(ModelBase):
     """
-    A base for TranslationModel.
-    I wanted to create a simple model-translation system without all the baggage of adding extra fields
-    to the source model or getting hacky with Generic Foreign Keys. I should find a better
-    way to do it, but this simple approach works. For now.
+    A metaclass for translation models (base for TranslationModel).
+
+    Automatically:
+    - Validates model inheritance
+    - Adds a foreign key to the source model
+    - Copies translatable fields from the source model
+    - Applies language-scoped uniqueness constraints
     """
 
     def __new__(mcls, name, bases, attrs, **kwargs):
@@ -121,11 +113,10 @@ class TranslationBase(ModelBase):
 
         # Make sure the translation model subclasses TranslationModel.
         if not any(
-            issubclass(base, TranslationModel)
+            isinstance(base, type) and issubclass(base, TranslationModel)
             for base in bases
-            if isinstance(base, type)
         ):
-            raise ImproperlyConfigured("Model must subclass TranslationModel.")
+            raise ImproperlyConfigured(f"{name} must subclass TranslationModel directly or indirectly.")
 
         source_model = attrs.get("source_model", None)
 
@@ -136,6 +127,7 @@ class TranslationBase(ModelBase):
 
         # Add foreign key that references the source model.
         source_name = attrs.get("source_name", "source")
+        # Related name
         translations_name = attrs.get("translations_name", "translations")
 
         attrs[source_name] = models.ForeignKey(
@@ -206,25 +198,29 @@ class TranslationBase(ModelBase):
 
 class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
     """
-    An abstract model for model field translations.
+    An abstract base model for translated fields.
 
-    A source foreign key (default "source" or named by attribute source_name) is automatically
-    generated and refers to the the source model, a subclass of TranslationSourceModel. The reverse relation is
-    named "translations" by default.
+    A foreign key to the source model is automatically generated by the
+    metaclass. Its name and related name can be customized with the source_name
+    and translations_name attributes.
+
+    Subclasses must define:
+    - source_model
+    - translation_fields
     """
 
     # The source model to be translated.
     # It must subclass the abstract model TranslationSourceModel.
     source_model = None
 
-    # The name of the foreign key referring to the source model.
+    # The name of the generated foreign key referring to the source model.
     source_name = "source"
 
-    # The name of the reverse relation of the translations in the source model.
+    # The related name of the source foreign key.
     translations_name = "translations"
 
     # The names of the fields in the source model to be copied and translated.
     translation_fields = []
 
-    class Meta(TranslationLanguageModel.Meta):
+    class Meta:
         abstract = True

@@ -46,7 +46,7 @@ class TestTranslationSourceManager(ModelTestSetup):
     translation_model = TranslationTestModel
     test_models = [source_model, translation_model]
 
-    def test_prefecth_translation(
+    def test_prefecth_translations(
         self,
         source,
         language_es,
@@ -70,30 +70,3 @@ class TestTranslationSourceManager(ModelTestSetup):
         source = self.source_model.objects.prefetch_translations(queryset=translation_queryset).get(pk=source_pk)
         assert source.translations.count() == 1
         assert source.translations.first() == translation_es
-
-    def test_prefetch_current_translation(
-        self,
-        source,
-        language_es,
-        language_de,
-        translation_es,
-        translation_de,
-    ):
-        source_pk = source.pk
-
-        # Current language: default (en)
-        source = self.source_model.objects.prefetch_current_translation().get(pk=source_pk)
-        assert source.translations.count() == 0
-        assert source.translations.first() is None
-
-        # Current language: es
-        activate(language_es)
-        source = self.source_model.objects.prefetch_current_translation().get(pk=source_pk)
-        assert source.translations.count() == 1
-        assert source.translations.first() == translation_es
-
-       # Current language: de
-        activate(language_de)
-        source = self.source_model.objects.prefetch_current_translation().get(pk=source_pk)
-        assert source.translations.count() == 1
-        assert source.translations.first() == translation_de

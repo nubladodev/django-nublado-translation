@@ -72,3 +72,25 @@ class TranslationTestModel(
     class Meta(TranslationModel.Meta):
         db_table = "test_translation_model"
         app_label = test_app_label
+
+
+class CustomSourceTestModel(TranslationSourceModel):
+    name = models.CharField(max_length=250)
+    slug = models.SlugField(max_length=250, unique=True)
+
+    class Meta:
+        db_table = "test_custom_translation_source_model"
+        app_label = test_app_label
+
+
+class CustomTranslationTestModel(TranslationModel):
+    source_model = CustomSourceTestModel
+    # Set custom source fk name.
+    source_name = "parent"
+    # Set custom translations name.
+    translations_name = "localized"
+    translation_fields = ["name", "slug"]
+
+    class Meta:
+        db_table = "test_custom_translation_model"
+        app_label = test_app_label
