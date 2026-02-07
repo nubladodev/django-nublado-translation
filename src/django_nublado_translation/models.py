@@ -52,10 +52,9 @@ class TranslationSourceModel(models.Model):
             dict[str, TranslationModel]: Mapping of language codes to
             translation instances.
         """
-        translations_dict = {
+        return {
             translation.language: translation for translation in self.translations.all()
         }
-        return translantions_dict
 
     def get_translation(self, language):
         """

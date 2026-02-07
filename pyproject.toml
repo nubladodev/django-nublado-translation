@@ -33,9 +33,9 @@ test = [
 ]
 
 [tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.support.settings"
 python_files = ["test_*.py"]
 pythonpath = ["."]
-
 addopts = [
     "--cov=django_nublado_translation",
     "--cov-report=term-missing",

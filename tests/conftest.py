@@ -27,11 +27,3 @@ def set_django_setting(monkeypatch):
     return _func
 
 
-@pytest.fixture
-def language_es():
-    return "es"
-
-
-@pytest.fixture
-def language_de():
-    return "de"

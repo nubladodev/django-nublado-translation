@@ -2,11 +2,12 @@ import pytest
 
 from django.utils.translation import activate
 
-from .models import (
-    ModelTestSetup,
+from .support.models import (
+    TestModelSetup,
     TranslationSourceTestModel,
     TranslationTestModel,
 )
+from .support.constants import LANG_ES, LANG_DE
 
 
 @pytest.fixture
@@ -19,10 +20,10 @@ def source():
 
 
 @pytest.fixture
-def translation_es(source, language_es):
+def translation_es(source):
     translation_es = TranslationTestModel.objects.create(
         source=source,
-        language=language_es,
+        language=LANG_ES,
         name="fee fee",
         slug="fee-fee",
     )
@@ -30,10 +31,10 @@ def translation_es(source, language_es):
 
 
 @pytest.fixture
-def translation_de(source, language_de):
+def translation_de(source):
     translation_de = TranslationTestModel.objects.create(
         source=source,
-        language=language_de,
+        language=LANG_DE,
         name="faa faa",
         slug="faa-faa",
     )
@@ -41,13 +42,13 @@ def translation_de(source, language_de):
 
 
 @pytest.mark.django_db(transaction=True)
-class TestTranslationSourceManager(ModelTestSetup):
+class TestTranslationSourceManager(TestModelSetup):
     source_model = TranslationSourceTestModel
     translation_model = TranslationTestModel
     test_models = [source_model, translation_model]
 
     def test_prefecth_translations(
-        self, source, language_es, translation_es, translation_de
+        self, source, translation_es, translation_de
     ):
         source_pk = source.pk
 
@@ -63,7 +64,7 @@ class TestTranslationSourceManager(ModelTestSetup):
 
         # source with prefetched translations filtered by queryset
         translation_queryset = self.translation_model.objects.filter(
-            language=language_es
+            language=LANG_ES
         )
         source = self.source_model.objects.prefetch_translations(
             queryset=translation_queryset
