@@ -8,10 +8,9 @@ from django_nublado_translation.models import (
     TranslationModel,
     TranslationLanguageModel,
 )
-# from django_nublado_translation.conf.app_settings import app_settings
 
 from .models import (
-    ModelTestSetup,
+    TestModelSetup,
     TranslationLanguageTestModel,
     TranslationSourceTestModel,
     TranslationTestModel,
@@ -21,7 +20,7 @@ from .models import (
 
 # Tests
 @pytest.mark.django_db(transaction=True)
-class TestTranslationLanguageModel(ModelTestSetup):
+class TestTranslationLanguageModel(TestModelSetup):
 
     model = TranslationLanguageTestModel
     test_models = [model]
@@ -69,7 +68,7 @@ class TestTranslationLanguageModel(ModelTestSetup):
 
 
 @pytest.mark.django_db(transaction=True)
-class TestTranslationSourceModel(ModelTestSetup):
+class TestTranslationSourceModel(TestModelSetup):
     """
     Tests for the abstract model TranslationSourceModel
     """
@@ -183,7 +182,7 @@ class TestTranslationSourceModel(ModelTestSetup):
         assert translation is None
 
 @pytest.mark.django_db(transaction=True)
-class TestTranslationModel(ModelTestSetup):
+class TestTranslationModel(TestModelSetup):
     """
     Tests for the abstract model TranslationSourceModel
     """
