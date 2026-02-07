@@ -123,6 +123,5 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": True,
         },
-
     },
 }

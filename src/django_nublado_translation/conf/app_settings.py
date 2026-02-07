@@ -8,9 +8,7 @@ from django_nublado_core.conf.base import AppSettings
 SETTINGS_DICT_NAME = "DJANGO_NUBLADO_TRANSLATION"
 
 # The app settings default values.
-SETTINGS_DEFAULTS = {
-    "SOURCE_LANGUAGE": django_settings.LANGUAGE_CODE
-}
+SETTINGS_DEFAULTS = {"SOURCE_LANGUAGE": django_settings.LANGUAGE_CODE}
 
 
 @dataclass(frozen=True)
@@ -23,4 +21,3 @@ app_settings = AppSettings(
     settings_dict_name=SETTINGS_DICT_NAME,
     cls=AppData,
 )
-

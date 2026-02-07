@@ -16,11 +16,11 @@ class TranslationSourceQuerySet(models.QuerySet):
         """
         if queryset is None:
             return self.prefetch_related("translations")
-            
+
         return self.prefetch_related(
             Prefetch("translations", queryset=queryset),
         )
 
 
 class TranslationSourceManager(models.Manager.from_queryset(TranslationSourceQuerySet)):
-	pass
+    pass

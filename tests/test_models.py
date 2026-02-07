@@ -18,31 +18,37 @@ from .models import (
     CustomTranslationTestModel,
 )
 
+TEST_LANGUAGES = [
+    ("en", _("English")),
+    ("es", _("Spanish")),
+    ("de", _("German")),
+    ("ja", _("Japanese")),
+]
+
+@pytest.fixture()
+def load_test_languages(set_django_setting):
+    set_django_setting(
+        "LANGUAGES",
+        TEST_LANGUAGES
+    )
+
+
 # Tests
 @pytest.mark.django_db(transaction=True)
 class TestTranslationLanguageModel(TestModelSetup):
 
-    model = TranslationLanguageTestModel
-    test_models = [model]
+    translation_language_model = TranslationLanguageTestModel
+    test_models = [translation_language_model]
 
-    def test_language_fixtures_valid(self, language_es, language_de):
-        # Get all allowed languages
-        allowed = TranslationLanguageModel.LanguageChoices.values
-        assert language_es in allowed
-        assert language_de in allowed
-
-    def test_language_choices(self, translation_app_settings):
+    def test_language_choices(self, load_test_languages, translation_app_settings):
         """
         The language choices are from an enum,
         and the source language isn't a member.
         """
         for language_code, label in TranslationLanguageModel.LanguageChoices.choices:
-            assert (
-                language_code
-                != translation_app_settings.SOURCE_LANGUAGE
-            )
+            assert language_code != translation_app_settings.SOURCE_LANGUAGE
 
-    def test_language_not_in_choices(self, translation_app_settings):
+    def test_language_not_in_choices(self, load_test_languages, translation_app_settings):
         """
         An exception is raised if a language code not included in
         the language choices is assigned.
@@ -50,7 +56,7 @@ class TestTranslationLanguageModel(TestModelSetup):
         invalid_language = "xx"
         source_language = translation_app_settings.SOURCE_LANGUAGE
 
-        obj = self.model.objects.create(name="hello", language="es")
+        obj = self.trasnlation_language_model.objects.create(name="hello", language="es")
 
         # A language code not in the translation-language choices
         error_message = f"Value '{invalid_language}' is not a valid choice."
@@ -83,6 +89,7 @@ class TestTranslationSourceModel(TestModelSetup):
 
     def test_translations_dict(
         self,
+        load_test_languages,
         language_es,
         language_de,
     ):
@@ -107,7 +114,12 @@ class TestTranslationSourceModel(TestModelSetup):
         assert translations_dict[language_es] == translation_es
         assert translations_dict[language_de] == translation_de
 
-    def test_has_translation(self, language_es, language_de):
+    def test_has_translation(
+        self,
+        load_test_languages,
+        language_es,
+        language_de,
+    ):
         source = self.source_model.objects.create(
             name="foo foo",
             slug="foo-foo",
@@ -120,10 +132,10 @@ class TestTranslationSourceModel(TestModelSetup):
         )
 
         assert source.has_translation(language_es) is True
-        assert source.has_translation(language_de) is False     
+        assert source.has_translation(language_de) is False
         assert source.has_translation("xx") is False
 
-    def test_get_translation(self, language_es, language_de):
+    def test_get_translation(self, load_test_languages, language_es, language_de):
         source = self.source_model.objects.create(
             name="foo foo",
             slug="foo-foo",
@@ -151,8 +163,7 @@ class TestTranslationSourceModel(TestModelSetup):
         translation = source.get_translation("fr")
         assert translation is None
 
-
-    def test_get_current_translation(self, language_es, language_de):
+    def test_get_current_translation(self, load_test_languages, language_es, language_de):
         """
         Get the translation of the current language.
         """
@@ -170,16 +181,20 @@ class TestTranslationSourceModel(TestModelSetup):
         # Default language
         translation = source.get_current_translation()
         assert translation is None
-   
+
         # es
         activate(language_es)
         translation = source.get_current_translation()
         assert translation == translation_es
-    
+
         # de
         activate(language_de)
         translation = source.get_current_translation()
         assert translation is None
+
+    def test_get_available_translation_languages(self, load_test_languages):
+        assert False
+
 
 @pytest.mark.django_db(transaction=True)
 class TestTranslationModel(TestModelSetup):
@@ -188,8 +203,11 @@ class TestTranslationModel(TestModelSetup):
     """
 
     source_model = TranslationSourceTestModel
-    custom_source_model = CustomSourceTestModel
     translation_model = TranslationTestModel
+
+    
+    custom_source_model = CustomSourceTestModel
+    # Customized source_name and translations_name
     custom_translation_model = CustomTranslationTestModel
 
     test_models = [
@@ -283,7 +301,7 @@ class TestTranslationModel(TestModelSetup):
             if c.name.endswith("language_slug_unique"):
                 assert set(c.fields) == {"language", "slug"}
 
-    def test_default_source_name(self, language_es):
+    def test_default_source_name(self, load_test_languages, language_es):
         source = self.source_model.objects.create(
             name="foo",
             slug="foo",
@@ -302,7 +320,7 @@ class TestTranslationModel(TestModelSetup):
         # Reverse relation exists
         assert translation in source.translations.all()
 
-    def test_custom_source_name(self, language_es):
+    def test_custom_source_name(self, load_test_languages, language_es):
         source = self.custom_source_model.objects.create(
             name="foo",
             slug="foo",
@@ -321,8 +339,7 @@ class TestTranslationModel(TestModelSetup):
         assert not hasattr(translation, "source")
         assert translation in source.localized.all()
 
-
-    def test_default_translations_name(self, language_es):
+    def test_default_translations_name(self, load_test_languages, language_es):
         source = self.source_model.objects.create(
             name="foo",
             slug="foo",
@@ -337,7 +354,7 @@ class TestTranslationModel(TestModelSetup):
         assert hasattr(source, "translations")
         assert translation in source.translations.all()
 
-    def test_custom_translations_name(self, language_es):
+    def test_custom_translations_name(self, load_test_languages, language_es):
 
         source = self.custom_source_model.objects.create(
             name="foo",

@@ -73,9 +73,11 @@ class TranslationTestModel(
         db_table = "test_translation_model"
         app_label = test_app_label
 
+
 # The following pair of test models are to demonstrate how you
 # can set the names of the source model fk and its reverse-relation name
 # via the source_name and translations_name attributes.
+
 
 class CustomSourceTestModel(TranslationSourceModel):
     name = models.CharField(max_length=250)

@@ -6,7 +6,10 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import get_language, gettext_lazy as _
 from django.utils.functional import cached_property
 
-from django_nublado_translation.utils import get_translation_languages_enum
+from django_nublado_translation.utils import (
+    get_translation_languages,
+    get_translation_languages_enum,
+)
 
 
 class TranslationLanguageModel(models.Model):
@@ -49,10 +52,10 @@ class TranslationSourceModel(models.Model):
             dict[str, TranslationModel]: Mapping of language codes to
             translation instances.
         """
-        trans_dict = {
+        translations_dict = {
             translation.language: translation for translation in self.translations.all()
         }
-        return trans_dict
+        return translantions_dict
 
     def get_translation(self, language):
         """
@@ -89,6 +92,24 @@ class TranslationSourceModel(models.Model):
 
         return language in self.translations_dict
 
+    def get_available_translation_languages(self):
+        """
+        Get translation languages that haven't
+        been used for this source object.
+
+        Returns:
+            list[str]: A list of language codes from the allowed
+            translation languages that haven't been used for this object.
+        """
+        used_languages = list(self.translations_dict.keys())
+        allowed_languages = get_translation_languages()
+
+        return [
+            language_code
+            for language_code in allowed_languages
+            if language_code not in used_languages
+        ]
+
 
 class TranslationBase(ModelBase):
     """
@@ -116,7 +137,9 @@ class TranslationBase(ModelBase):
             isinstance(base, type) and issubclass(base, TranslationModel)
             for base in bases
         ):
-            raise ImproperlyConfigured(f"{name} must subclass TranslationModel directly or indirectly.")
+            raise ImproperlyConfigured(
+                f"{name} must subclass TranslationModel directly or indirectly."
+            )
 
         source_model = attrs.get("source_model", None)
 

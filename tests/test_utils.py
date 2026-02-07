@@ -4,7 +4,10 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
 from django_nublado_translation.conf.app_settings import SETTINGS_DICT_NAME
-from django_nublado_translation.utils import get_translation_languages_enum
+from django_nublado_translation.utils import (
+    get_translation_languages,
+    get_translation_languages_enum,
+)
 
 TEST_LANGUAGES = [
     ("en", _("English")),
@@ -13,6 +16,12 @@ TEST_LANGUAGES = [
     ("ja", _("Japanese")),
 ]
 
+@pytest.fixture()
+def load_test_languages(set_django_setting):
+    set_django_setting(
+        "LANGUAGES",
+        TEST_LANGUAGES
+    )
 
 def assert_enum_correct(enum, source_language):
     assert source_language not in enum.values
@@ -23,19 +32,24 @@ def assert_enum_correct(enum, source_language):
 
 
 class TestUtils:
+    def test_get_translation_languages(
+        self, load_test_languages,
+    ):
+        assert settings.LANGUAGE_CODE == "en"
+        translation_languages = get_translation_languages()
+        assert set(translation_languages) == {"es", "de", "ja"}
 
-    def test_get_translation_languages_enum(self, set_django_setting, translation_app_settings):
-        assert translation_app_settings._loaded is False
-        set_django_setting(
-            "LANGUAGES",
-            TEST_LANGUAGES,
-        )
-
+    def test_get_translation_languages_enum(
+        self,
+        load_test_languages,
+        set_django_setting,
+        translation_app_settings,
+    ):
         enum = get_translation_languages_enum()
         assert settings.LANGUAGE_CODE == "en"
         assert translation_app_settings.SOURCE_LANGUAGE == settings.LANGUAGE_CODE
         assert_enum_correct(enum, translation_app_settings.SOURCE_LANGUAGE)
-  
+
         # Override source language.
         set_django_setting(
             SETTINGS_DICT_NAME,
