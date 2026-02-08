@@ -52,6 +52,8 @@ class TranslationSourceTestModel(
     name = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250, unique=True)
 
+    translated_fields = ["name", "slug"]
+
     objects = TranslationSourceManager()
 
     class Meta:
@@ -65,9 +67,8 @@ class TranslationTestModel(
     """
     A test model that subclasses TranslationModel
     """
-
     source_model = TranslationSourceTestModel
-    translation_fields = ["name", "slug"]
+
 
     class Meta(TranslationModel.Meta):
         db_table = "test_translation_model"
@@ -82,6 +83,7 @@ class TranslationTestModel(
 class CustomSourceTestModel(TranslationSourceModel):
     name = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250, unique=True)
+    translated_fields = ["name", "slug"]
 
     class Meta:
         db_table = "test_custom_translation_source_model"
@@ -94,7 +96,6 @@ class CustomTranslationTestModel(TranslationModel):
     source_name = "parent"
     # Set custom translations name.
     translations_name = "localized"
-    translation_fields = ["name", "slug"]
 
     class Meta:
         db_table = "test_custom_translation_model"

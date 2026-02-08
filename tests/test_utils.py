@@ -21,6 +21,7 @@ def assert_enum_correct(enum, source_language):
     assert source_language not in enum.values
     for code, label in settings.LANGUAGES:
         if code != source_language:
+            assert hasattr(enum, code.upper())
             assert code in enum.values
             assert label in enum.labels
 

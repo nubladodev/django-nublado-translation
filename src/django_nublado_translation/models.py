@@ -1,4 +1,5 @@
 import copy
+import logging
 
 from django.db import models
 from django.db.models.base import ModelBase
@@ -10,6 +11,8 @@ from django_nublado_translation.utils import (
     get_translation_languages,
     get_translation_languages_enum,
 )
+
+logger = logging.getLogger("django")
 
 
 class TranslationLanguageModel(models.Model):
@@ -40,33 +43,83 @@ class TranslationSourceModel(models.Model):
     An abstract base model for objects that can be translated.
     """
 
+    _TRANSLATIONS_DICT_CACHE_KEY = "_translations_dict"
+
+    # Fields to be translated
+    translated_fields = []
+
+
     class Meta:
         abstract = True
 
-    @cached_property
-    def translations_dict(self):
-        """
-        Return translations indexed by language code.
 
-        Returns:
-            dict[str, TranslationModel]: Mapping of language codes to
-            translation instances.
+    def _build_translations_dict(self):
+        """
+        Build translations dict indexed by language key from fetched translations queryset.
         """
         return {
             translation.language: translation for translation in self.translations.all()
         }
 
-    def get_translation(self, language):
+    @property
+    def translations_dict(self):
         """
-        Return the translation for the given language.
+        Return translations indexed by language code.
 
-        Args:
-            language (str): Language code
+        The translations dict is cached to reduce database hits, and 
+        can be uncached manually if the dict needs to be refreshed.
 
         Returns:
-            TranslationModel | None: The translation instance or None if missing.
+            dict[str, TranslationModel]: Mapping of language codes to
+            translation instances.
         """
-        return self.translations_dict.get(language)
+        cache = self.__dict__.get(self._TRANSLATIONS_DICT_CACHE_KEY)
+
+        if cache is None:
+            cache = self._build_translations_dict()
+            self.__dict__[self._TRANSLATIONS_DICT_CACHE_KEY] = cache
+
+        return cache
+
+    def clear_translations_dict_cache(self):
+        """
+        Manually clear the translations_dict cache.
+        """
+        self.__dict__.pop(self._TRANSLATIONS_DICT_CACHE_KEY, None)
+
+    def get_translation(self, language):
+        """
+        Resolve a translation for a given language code, with fallback.
+
+        Args:
+            language (str): The language code (e.g., en, en-au, es, es-ar)
+
+        Returns:
+            TranslationModel | None: The translation instance or None if not found.
+        """
+        if not language:
+            return None
+
+        language = language.lower()
+
+        # Get an exact match. 
+        translation = self.translations_dict.get(language)
+        if translation:
+            return translation
+
+        # Base language fallback. 
+        # For example, if a translation isn't found for "en-au",
+        # attempt to get the translation for "en".
+        base_language = language.split("-", 1)[0]
+        if base_language != language:
+            logger.info(
+                f"Language code {language} not found. Attempting to fall back to {base_language}."
+            )
+            return self.translations_dict.get(base_language)
+        
+        # No translation found.
+        logger.info(f"No translation found for base language {base_language}. Returning None.")
+        return None
 
     def get_current_translation(self):
         """
@@ -129,7 +182,7 @@ class TranslationBase(ModelBase):
 
         # Exit if subclass is an abstact model.
         if getattr(meta_class, "abstract", False):
-            return super_new(mcls, name, bases, attrs)
+            return super_new(mcls, name, bases, attrs, **kwargs)
 
         # Make sure the translation model subclasses TranslationModel.
         if not any(
@@ -147,10 +200,23 @@ class TranslationBase(ModelBase):
         if not issubclass(source_model, TranslationSourceModel):
             raise ValueError("Source model must subclass TranslationSourceModel.")
 
-        # Add foreign key that references the source model.
-        source_name = attrs.get("source_name", "source")
-        # Related name
-        translations_name = attrs.get("translations_name", "translations")
+        # Resolve source_name.
+        source_name = attrs.get("source_name")
+        if source_name is None:
+            source_name = getattr(TranslationModel, "_DEFAULT_SOURCE_NAME", None)
+        if source_name is None:
+            raise ImproperlyConfigured(
+                f"{name} must define 'source_name' or TranslationModel._DEFAULT_SOURCE_NAME"
+            )
+
+        # Resolve translations_name.
+        translations_name = attrs.get("translations_name")
+        if translations_name is None:
+            translations_name = getattr(TranslationModel, "_DEFAULT_TRANSLATIONS_NAME", None)
+        if translations_name is None:
+            raise ImproperlyConfigured(
+                f"{name} must define 'translations_name' or TranslationModel._DEFAULT_TRANSLATIONS_NAME"
+        )
 
         attrs[source_name] = models.ForeignKey(
             source_model,
@@ -160,15 +226,21 @@ class TranslationBase(ModelBase):
             verbose_name=_(source_name),
         )
 
-        translation_fields = attrs.get("translation_fields", [])
-        unique_fields = []
+        translation_fields = getattr(source_model, "translated_fields", [])
 
         if translation_fields:
             source_fields = {f.name: f for f in source_model._meta.concrete_fields}
+            unique_fields = []
 
             for field_name in translation_fields:
-                # Make sure values in translation_fields have corresponding fields
-                # in source_model.
+                # Raise an exception if the translation model has an attribute
+                # with the same name as a field that's to be translated from the source model.
+                if field_name in attrs:
+                    raise ImproperlyConfigured(
+                        f"Field '{field_name}' on translation model '{name}' "
+                        f"would overwrite an existing attribute. Rename it."
+                    )
+
                 source_field = source_fields.get(field_name)
                 if not source_field:
                     raise ImproperlyConfigured(
@@ -198,10 +270,11 @@ class TranslationBase(ModelBase):
         constraints = list(getattr(meta_class, "constraints", []))
 
         # One translation per language per source
+        translation_table = name.lower()
         constraints.append(
             models.UniqueConstraint(
                 fields=["language", source_name],
-                name=f"{source_model._meta.db_table}_language_source_unique",
+                name=f"{translation_table}_language_source_unique",
             )
         )
 
@@ -210,7 +283,7 @@ class TranslationBase(ModelBase):
             constraints.append(
                 models.UniqueConstraint(
                     fields=["language", field],
-                    name=f"{source_model._meta.db_table}_language_{field}_unique",
+                    name=f"{translation_table}_language_{field}_unique",
                 )
             )
         meta_class.constraints = constraints
@@ -231,18 +304,21 @@ class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
     - translation_fields
     """
 
+    _DEFAULT_SOURCE_NAME = "source"
+    _DEFAULT_TRANSLATIONS_NAME = "translations"
+
     # The source model to be translated.
     # It must subclass the abstract model TranslationSourceModel.
     source_model = None
 
     # The name of the generated foreign key referring to the source model.
-    source_name = "source"
+    source_name = _DEFAULT_SOURCE_NAME
 
     # The related name of the source foreign key.
-    translations_name = "translations"
+    translations_name = _DEFAULT_TRANSLATIONS_NAME
 
     # The names of the fields in the source model to be copied and translated.
-    translation_fields = []
+    # translation_fields = []
 
     class Meta:
         abstract = True

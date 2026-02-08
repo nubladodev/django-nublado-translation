@@ -100,6 +100,42 @@ class TestTranslationSourceModel(TestModelSetup):
         assert translations_dict[LANG_ES] == translation_es
         assert translations_dict[LANG_DE] == translation_de
 
+    def test_clear_translations_dict_cache(self):
+        source = self.source_model.objects.create(name="foo", slug="foo")
+        translation_es = self.translation_model.objects.create(
+            source=source, language=LANG_ES, name="fee", slug="fee"
+        )
+
+        # Access translations_dict to build cache
+        translations_dict = source.translations_dict
+        assert "_translations_dict" in source.__dict__
+
+        # Clear cache.
+        source.clear_translations_dict_cache()
+        assert "_translations_dict" not in source.__dict__
+
+        # Access again rebuilds cache.
+        translations_dict = source.translations_dict
+        assert "_translations_dict" in source.__dict__
+
+    def test_build_translations_dict(self):
+        source = self.source_model.objects.create(name="foo", slug="foo")
+        translation_es = self.translation_model.objects.create(
+            source=source, language=LANG_ES, name="fee", slug="fee"
+        )
+        translation_de = self.translation_model.objects.create(
+            source=source, language=LANG_DE, name="faa", slug="faa"
+        )
+
+        result = source._build_translations_dict()
+        assert result == {
+            LANG_ES: translation_es,
+            LANG_DE: translation_de
+        }
+
+        # Ensure it's a new dict (not cached)
+        assert result is not source.translations_dict
+
     def test_has_translation(self):
         source = self.source_model.objects.create(
             name="foo foo",
@@ -143,6 +179,10 @@ class TestTranslationSourceModel(TestModelSetup):
         # Return None if no translation is found.
         translation = source.get_translation("fr")
         assert translation is None
+
+        # Test fallback es-ar -> es
+        translation = source.get_translation("es-ar")
+        assert translation == translation_es
 
     def test_get_current_translation(self):
         """
@@ -214,7 +254,6 @@ class TestTranslationModel(TestModelSetup):
         """
         assert TranslationModel.source_model is None
         assert TranslationModel.source_name == "source"
-        assert TranslationModel.translation_fields == []
         assert TranslationModel.translations_name == "translations"
 
     def test_unique_in_source_unique_by_language_in_translation(self):
@@ -271,15 +310,16 @@ class TestTranslationModel(TestModelSetup):
 
         # Check that there is a language + source constraint
         expected_name = (
-            f"{TranslationSourceTestModel._meta.db_table}_language_source_unique"
+            f"{TranslationTestModel.__name__.lower()}_language_source_unique"
         )
+        print(unique_constraints)
         assert any(
             c.name == expected_name for c in unique_constraints
         ), f"Missing expected UniqueConstraint: {expected_name}"
 
         # Check that there is a language + slug constraint.
         expected_name = (
-            f"{TranslationSourceTestModel._meta.db_table}_language_slug_unique"
+            f"{TranslationTestModel.__name__.lower()}_language_slug_unique"
         )
         assert any(
             c.name == expected_name for c in unique_constraints

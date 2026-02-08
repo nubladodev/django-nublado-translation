@@ -19,15 +19,16 @@ def get_translation_languages():
 
 def get_translation_languages_enum(*, enum_name="TranslationLanguagesEnum"):
     """
-    Return a TextChoices enum for translation languages.
+    Return an enum of the translation languages.
 
     Excludes the source language defined in app settings.
 
-    Args:enum_name:
-        Optional. Name of the enum class.
+    Args:
+        enum_name (str): Optional. Name of the enum class.
 
     Returns:
         A Django TextChoices enum for the translation languages.
+
     """
     source_language = app_settings.SOURCE_LANGUAGE
     # Translation languages (without source language).
