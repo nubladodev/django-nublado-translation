@@ -7,14 +7,13 @@ Lightweight, focused, no bloat: translate model fields via a two-model contract 
 ## Features
 
 - Abstract base models for translation:  
-  - `TranslationSourceModel` — for models that can be translated  
-  - `TranslationModel` — for the translations of a source model  
+  - `TranslationSourceModel` — for models that can be translated. 
+  - `TranslationModel` — for the translations of a source model. 
 - Translation managers:  
-  - `TranslationSourceManager` — helper methods for working with translations  
+  - `TranslationSourceManager` — helper methods for working with translations. 
 - Guarantees:  
-  - A source object can have at most one translation per language  
-  - Unique fields on the source model are unique per language in the translation model  
-  - All invariants enforced at the **database level**
+  - A source object can have at most one translation per language. 
+  - Unique fields on the source model are unique per language in the translation model.  
 
 ## Installation
 
