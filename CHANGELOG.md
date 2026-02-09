@@ -1,3 +1,7 @@
+## [0.3.0] - 2026-02-09
+
+
+
 ## [0.2.0] – 2026-02-08
 
 ### Changed
@@ -20,7 +24,12 @@
 ### Breaking Changes
 - `TranslationBase` now copies translated fields exclusively from
   `TranslationSourceModel.translated_fields`.
-  Translation models no longer define their own translated field lists.
+- Translation models **must no longer** define their own translated field lists.
+
+
+### Migration Notes
+- Move any `translation_fields` definitions from translation models
+  to `translated_fields` on the corresponding source model.
 
 ## [0.1.0]
 - Initial release

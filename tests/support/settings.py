@@ -2,7 +2,6 @@ import os
 
 from .constants import TEST_LANGUAGES, LANG_EN
 
-
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "test-secret-key")
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1"]
@@ -15,8 +14,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    
-    # Local 
+    # Local
     "django_nublado_core",
     "django_nublado_translation",
 ]

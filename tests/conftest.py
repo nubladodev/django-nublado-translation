@@ -25,5 +25,3 @@ def set_django_setting(monkeypatch):
         monkeypatch.setattr(settings, name, value, raising=False)
 
     return _func
-
-

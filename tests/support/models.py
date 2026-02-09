@@ -6,7 +6,7 @@ from django_nublado_translation.models import (
     TranslationSourceModel,
     TranslationModel,
 )
-from django_nublado_translation.managers import TranslationSourceManager
+from django_nublado_translation.managers import TranslationSourceManager, TranslationManager
 
 test_app_label = "test_django_nublado_translation"
 
@@ -47,8 +47,6 @@ class TranslationSourceTestModel(
     """
     A test model that subclasses TranslationSourceModel.
     """
-
-    # To do: Test overridden source_name and translations_name attributes.
     name = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250, unique=True)
 
@@ -67,8 +65,10 @@ class TranslationTestModel(
     """
     A test model that subclasses TranslationModel
     """
+
     source_model = TranslationSourceTestModel
 
+    objects = TranslationManager()
 
     class Meta(TranslationModel.Meta):
         db_table = "test_translation_model"
@@ -76,10 +76,7 @@ class TranslationTestModel(
 
 
 # The following pair of test models are to demonstrate how you
-# can set the names of the source model fk and its reverse-relation name
-# via the source_name and translations_name attributes.
-
-
+# can set the name of the source model fk before migrations to avoid possible collisions.
 class CustomSourceTestModel(TranslationSourceModel):
     name = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250, unique=True)
@@ -94,8 +91,8 @@ class CustomTranslationTestModel(TranslationModel):
     source_model = CustomSourceTestModel
     # Set custom source fk name.
     source_name = "parent"
-    # Set custom translations name.
-    translations_name = "localized"
+
+    objects = TranslationManager()
 
     class Meta:
         db_table = "test_custom_translation_model"

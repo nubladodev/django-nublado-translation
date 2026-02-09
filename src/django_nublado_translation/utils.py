@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings as django_settings
 
-from django_nublado_translation.conf.app_settings import app_settings
+from .conf.app_settings import app_settings
 
 
 def get_translation_languages():

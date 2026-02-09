@@ -1,5 +1,6 @@
 import pytest
 
+from django.db.models import Manager
 from django.utils.translation import activate
 
 from .support.models import (
@@ -47,27 +48,47 @@ class TestTranslationSourceManager(TestModelSetup):
     translation_model = TranslationTestModel
     test_models = [source_model, translation_model]
 
-    def test_prefecth_translations(
-        self, source, translation_es, translation_de
-    ):
+    def test_prefetch_translations(self, source, translation_es, translation_de):
         source_pk = source.pk
 
-        # source without preloaded translations
-        with pytest.raises(AttributeError):
-            cached = source._prefetched_objects_cache["translations",]
-        assert hasattr(source, "_prefetched_objects_cache") is False
+        # Before prefetch: no attribute exists
+        assert not hasattr(source, "prefetched_translations")
 
-        # source with prefetched translations
-        source = self.source_model.objects.prefetch_translations().get(pk=source_pk)
-        assert source._prefetched_objects_cache["translations"].count() == 2
-        assert source.translations.count() == 2
-
-        # source with prefetched translations filtered by queryset
-        translation_queryset = self.translation_model.objects.filter(
-            language=LANG_ES
+        # Perform prefetch
+        source = (
+            self.source_model.objects
+            .prefetch_translations()
+            .get(pk=source_pk)
         )
-        source = self.source_model.objects.prefetch_translations(
-            queryset=translation_queryset
-        ).get(pk=source_pk)
-        assert source.translations.count() == 1
-        assert source.translations.first() == translation_es
+
+        # After prefetch: prefetched_translations exists and is a list
+        assert hasattr(source, "prefetched_translations")
+        assert isinstance(source.prefetched_translations, list)
+        assert len(source.prefetched_translations) == 2
+        assert translation_es in source.prefetched_translations
+        assert translation_de in source.prefetched_translations
+
+        # Original related manager still works
+        assert isinstance(source.translations, Manager)
+        all_translations = list(source.translations.all())
+        assert translation_es in all_translations
+        assert translation_de in all_translations
+
+
+@pytest.mark.django_db(transaction=True)
+class TestTranslationManager(TestModelSetup):
+    source_model = TranslationSourceTestModel
+    translation_model = TranslationTestModel
+    test_models = [source_model, translation_model]
+
+    def test_with_source(self, translation_es):
+        translation = self.translation_model.objects.get(pk=translation_es.pk)
+        assert translation.__class__.source.is_cached(translation) is False
+
+        translation = (
+            self.translation_model.objects
+            .with_source()
+            .get(pk=translation_es.pk)
+        )
+        assert translation.__class__.source.is_cached(translation) is True
+

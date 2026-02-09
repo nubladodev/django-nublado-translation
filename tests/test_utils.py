@@ -14,8 +14,8 @@ from .support.constants import TEST_LANGUAGES, LANG_EN, LANG_ES, LANG_DE
 
 @pytest.fixture()
 def _test_languages(set_django_setting):
-    set_django_setting("LANGUAGES", TEST_LANGUAGES
-)
+    set_django_setting("LANGUAGES", TEST_LANGUAGES)
+
 
 def assert_enum_correct(enum, source_language):
     assert source_language not in enum.values
