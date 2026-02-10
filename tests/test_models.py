@@ -266,29 +266,64 @@ class TestTranslationModel(TestModelSetup):
         """
         # Slug is unique in the source model.
         assert self.source_model._meta.get_field("slug").unique is True
+
         # Slug isn't unique in the translation model (it's unique with language).
         assert self.translation_model._meta.get_field("slug").unique is False
+
         constraints = self.translation_model._meta.constraints
         assert any(
             isinstance(c, models.UniqueConstraint)
             and set(c.fields) == {"language", "slug"}
             for c in constraints
         )
+        source = self.source_model.objects.create(
+            name="foo",
+            slug="foo",
+        )
+        translation_1 = self.translation_model.objects.create(
+            source=source,
+            language=LANG_ES,
+            name="bar",
+            slug="bar",
+        )
+        translation_2 = self.translation_model.objects.create(
+            source=source,
+            language=LANG_DE,
+            name="bar",
+            slug="bar",
+        )
 
-    def test_meta(self):
+        # This shouldn't raise an error: Two slugs with the same vale, but with different languages.abs
+        translation_1.slug = translation_2.slug
+        translation_1.full_clean()
+        translation_1.save()
+
+
+    def test_unique_constraints(self):
         constraints = self.translation_model._meta.constraints
-        custom_constraints = self.custom_translation_model._meta.constraints
 
+        expected_name = f"{TranslationTestModel.__name__.lower()}_language_slug_unique"
         assert any(
             isinstance(c, models.UniqueConstraint)
             and set(c.fields) == {"language", "slug"}
+            and c.name == expected_name
             for c in constraints
+        ), f"Missing expected UniqueConstraint: {expected_name}"
+
+        expected_name = (
+            f"{TranslationTestModel.__name__.lower()}_language_source_unique"
         )
         assert any(
             isinstance(c, models.UniqueConstraint)
             and set(c.fields) == {"language", "source"}
+            and c.name == expected_name
             for c in constraints
-        )
+        ), f"Missing expected UniqueConstraint: {expected_name}"
+
+
+    def test_unique_constrants_for_custom_source_name(self):
+        # A TranslationModel with a different name for the source field, "parent" in this example.
+        custom_constraints = self.custom_translation_model._meta.constraints
 
         assert any(
             isinstance(c, models.UniqueConstraint)
@@ -300,38 +335,6 @@ class TestTranslationModel(TestModelSetup):
             and set(c.fields) == {"language", "slug"}
             for c in custom_constraints
         )
-
-    def test_unique_constraints_applied(self):
-        translation_model = TranslationTestModel
-
-        # Collect all unique constraints
-        unique_constraints = [
-            c
-            for c in translation_model._meta.constraints
-            if isinstance(c, models.UniqueConstraint)
-        ]
-
-        # Check that there is a language + source constraint
-        expected_name = (
-            f"{TranslationTestModel.__name__.lower()}_language_source_unique"
-        )
-        print(unique_constraints)
-        assert any(
-            c.name == expected_name for c in unique_constraints
-        ), f"Missing expected UniqueConstraint: {expected_name}"
-
-        # Check that there is a language + slug constraint.
-        expected_name = f"{TranslationTestModel.__name__.lower()}_language_slug_unique"
-        assert any(
-            c.name == expected_name for c in unique_constraints
-        ), f"Missing expected UniqueConstraint: {expected_name}"
-
-        # Optionally, verify the fields for each constraint.
-        for c in unique_constraints:
-            if c.name.endswith("language_source_unique"):
-                assert set(c.fields) == {"language", "source"}
-            if c.name.endswith("language_slug_unique"):
-                assert set(c.fields) == {"language", "slug"}
 
     def test_default_source_name(self):
         source = self.source_model.objects.create(

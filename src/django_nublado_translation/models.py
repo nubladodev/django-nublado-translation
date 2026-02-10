@@ -15,6 +15,13 @@ from .utils import (
 logger = logging.getLogger("django")
 
 
+def clone_field_without_unique(field):
+    assert not field.is_relation
+    name, path, args, kwargs = field.deconstruct()
+    kwargs.pop("unique", None)
+    return field.__class__(*args, **kwargs)
+
+
 class TranslationLanguageModel(models.Model):
     """
     An abstract base model that provides a language field for translations.
@@ -248,12 +255,17 @@ class TranslationBase(ModelBase):
                     )
 
                 # Copy field to translation model.
-                field_copy = copy.deepcopy(source_field)
+                #field_copy = copy.deepcopy(source_field)
 
                 # Handle unique fields by making them unique per language.
-                if field_copy.unique:
-                    field_copy.unique = False
-                    unique_fields.append(field_copy.name)
+                # if field_copy.unique:
+                #     field_copy.unique = False
+                #     field_copy._unique = False   # ← REQUIRED
+
+                field_copy = clone_field_without_unique(source_field)
+
+                if source_field.unique:
+                    unique_fields.append(field_name)
 
                 # Add the copied field to the translation model attributes.
                 attrs[field_name] = field_copy

@@ -13,8 +13,7 @@ class TranslationSourceQuerySet(models.QuerySet):
         `prefetched_translations` attribute.
 
         Args:
-            queryset:
-                Optional queryset to filter the prefetched translations (e.g., by language).
+            queryset: Optional queryset to filter the prefetched translations (e.g., by language).
 
         Returns:
             list: translations loaded and accessed with "prefetched_translations".
