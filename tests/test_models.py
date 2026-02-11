@@ -1,6 +1,6 @@
 import pytest
 
-from django.db import models
+from django.db import models, IntegrityError
 from django.core.exceptions import ValidationError
 from django.utils.translation import activate, gettext_lazy as _
 
@@ -218,15 +218,29 @@ class TestTranslationSourceModel(TestModelSetup):
             name="foo foo",
             slug="foo-foo",
         )
+
+        languages = source.get_available_translation_languages()
+        assert set(languages) == {LANG_ES, LANG_DE}
+
         translation_es = self.translation_model.objects.create(
             source=source,
             language=LANG_ES,
             name="fee fee",
             slug="fee-fee",
         )
+
         languages = source.get_available_translation_languages()
         assert set(languages) == {LANG_DE}
 
+        translation_de = self.translation_model.objects.create(
+            source=source,
+            language=LANG_DE,
+            name="fuh fuh",
+            slug="fuh-fuh",
+        )
+
+        languages = source.get_available_translation_languages()
+        assert languages == []
 
 @pytest.mark.django_db(transaction=True)
 class TestTranslationModel(TestModelSetup):
@@ -293,10 +307,18 @@ class TestTranslationModel(TestModelSetup):
             slug="bar",
         )
 
-        # This shouldn't raise an error: Two slugs with the same vale, but with different languages.abs
+        # This shouldn't raise an error: Two slugs with the same value, 
+        # but different languages.
         translation_1.slug = translation_2.slug
         translation_1.full_clean()
         translation_1.save()
+
+        # Now let's fire that expected error.
+        translation_1.language = translation_2.language
+
+        # Violating the (language, slug) unique constraint.
+        with pytest.raises(IntegrityError) as excinfo:
+            translation_1.save()
 
 
     def test_unique_constraints(self):

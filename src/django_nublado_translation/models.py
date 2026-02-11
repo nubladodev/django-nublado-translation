@@ -160,14 +160,12 @@ class TranslationSourceModel(models.Model):
             list[str]: A list of language codes from the allowed
             translation languages that haven't been used for this object.
         """
-        used_languages = list(self.translations_dict.keys())
-        allowed_languages = get_translation_languages()
+        used_languages = set(
+            self.translations.values_list("language", flat=True)
+        )
+        allowed_languages = set(get_translation_languages())
 
-        return [
-            language_code
-            for language_code in allowed_languages
-            if language_code not in used_languages
-        ]
+        return sorted(allowed_languages - used_languages)
 
 
 class TranslationBase(ModelBase):

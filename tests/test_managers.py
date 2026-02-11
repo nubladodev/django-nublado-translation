@@ -48,13 +48,17 @@ class TestTranslationSourceManager(TestModelSetup):
     translation_model = TranslationTestModel
     test_models = [source_model, translation_model]
 
-    def test_prefetch_translations(self, source, translation_es, translation_de):
+    def test_prefetch_translations_no_queryset(self, source, translation_es, translation_de):
+        """
+        prefetch_translations always returns the results in a list referenced by the 
+        attribute prefetched_translations.
+        """
         source_pk = source.pk
 
         # Before prefetch: no attribute exists
         assert not hasattr(source, "prefetched_translations")
 
-        # Perform prefetch
+        # without translation filter.
         source = (
             self.source_model.objects
             .prefetch_translations()
@@ -67,6 +71,39 @@ class TestTranslationSourceManager(TestModelSetup):
         assert len(source.prefetched_translations) == 2
         assert translation_es in source.prefetched_translations
         assert translation_de in source.prefetched_translations
+
+        # Original related manager still works
+        assert isinstance(source.translations, Manager)
+        all_translations = list(source.translations.all())
+        assert translation_es in all_translations
+        assert translation_de in all_translations
+
+    def test_prefetch_translations_with_queryset(self, source, translation_es, translation_de):
+        """
+        prefetch_translations always returns the results in a list referenced by the 
+        attribute prefetched_translations.
+        """
+        source_pk = source.pk
+
+        # Before prefetch: no attribute exists
+        assert not hasattr(source, "prefetched_translations")
+
+        # translation filter
+        translation_qs = self.translation_model.objects.filter(language=LANG_ES)
+
+        # with translation filter.
+        source = (
+            self.source_model.objects
+            .prefetch_translations(queryset=translation_qs)
+            .get(pk=source_pk)
+        )
+
+        # After prefetch: prefetched_translations exists and is a list
+        assert hasattr(source, "prefetched_translations")
+        assert isinstance(source.prefetched_translations, list)
+        assert len(source.prefetched_translations) == 1
+        assert translation_es in source.prefetched_translations
+        assert translation_de not in source.prefetched_translations
 
         # Original related manager still works
         assert isinstance(source.translations, Manager)
