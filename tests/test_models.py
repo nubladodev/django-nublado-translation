@@ -17,7 +17,7 @@ from .support.models import (
     CustomSourceTestModel,
     CustomTranslationTestModel,
 )
-from .support.constants import TEST_LANGUAGES, LANG_EN, LANG_ES, LANG_DE
+from .support.constants import TEST_LANGUAGES, TEST_APP_LABEL, LANG_EN, LANG_ES, LANG_DE
 
 
 @pytest.fixture(autouse=True)
@@ -323,8 +323,9 @@ class TestTranslationModel(TestModelSetup):
 
     def test_unique_constraints(self):
         constraints = self.translation_model._meta.constraints
+        print(constraints)
 
-        expected_name = f"{TranslationTestModel.__name__.lower()}_language_slug_unique"
+        expected_name = f"{TEST_APP_LABEL}_{TranslationTestModel.__name__.lower()}_scoped_unique"
         assert any(
             isinstance(c, models.UniqueConstraint)
             and set(c.fields) == {"language", "slug"}
@@ -333,7 +334,7 @@ class TestTranslationModel(TestModelSetup):
         ), f"Missing expected UniqueConstraint: {expected_name}"
 
         expected_name = (
-            f"{TranslationTestModel.__name__.lower()}_language_source_unique"
+            f"{TEST_APP_LABEL}_{TranslationTestModel.__name__.lower()}_language_source_unique"
         )
         assert any(
             isinstance(c, models.UniqueConstraint)
@@ -342,6 +343,8 @@ class TestTranslationModel(TestModelSetup):
             for c in constraints
         ), f"Missing expected UniqueConstraint: {expected_name}"
 
+    def test_unique_constraints_with_further_scope(self):
+        assert False
 
     def test_unique_constrants_for_custom_source_name(self):
         # A TranslationModel with a different name for the source field, "parent" in this example.

@@ -7,8 +7,9 @@ from django_nublado_translation.models import (
     TranslationModel,
 )
 from django_nublado_translation.managers import TranslationSourceManager, TranslationManager
+from.constants import TEST_APP_LABEL
 
-test_app_label = "test_django_nublado_translation"
+TEST_APP_LABEL = "test_django_nublado_translation"
 
 
 class TestModelSetup:
@@ -38,7 +39,7 @@ class TranslationLanguageTestModel(TranslationLanguageModel):
 
     class Meta(TranslationLanguageModel.Meta):
         db_table = "test_translation_language_model"
-        app_label = test_app_label
+        app_label = TEST_APP_LABEL
 
 
 class TranslationSourceTestModel(
@@ -56,7 +57,7 @@ class TranslationSourceTestModel(
 
     class Meta:
         db_table = "test_translation_source_model"
-        app_label = test_app_label
+        app_label = TEST_APP_LABEL
 
 
 class TranslationTestModel(
@@ -68,11 +69,14 @@ class TranslationTestModel(
 
     source_model = TranslationSourceTestModel
 
+    translation_unique_fields = ["slug"]
+    translation_scope_fields = []
+
     objects = TranslationManager()
 
     class Meta(TranslationModel.Meta):
         db_table = "test_translation_model"
-        app_label = test_app_label
+        app_label = TEST_APP_LABEL
 
 
 # The following pair of test models are to demonstrate how you
@@ -84,7 +88,7 @@ class CustomSourceTestModel(TranslationSourceModel):
 
     class Meta:
         db_table = "test_custom_translation_source_model"
-        app_label = test_app_label
+        app_label = TEST_APP_LABEL
 
 
 class CustomTranslationTestModel(TranslationModel):
@@ -92,8 +96,11 @@ class CustomTranslationTestModel(TranslationModel):
     # Set custom source fk name.
     source_name = "parent"
 
+    translation_unique_fields = ["slug"]
+    translation_scope_fields = []
+
     objects = TranslationManager()
 
     class Meta:
         db_table = "test_custom_translation_model"
-        app_label = test_app_label
+        app_label = TEST_APP_LABEL

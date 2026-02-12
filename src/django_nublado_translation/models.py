@@ -7,6 +7,8 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import get_language, gettext_lazy as _
 from django.utils.functional import cached_property
 
+from django_nublado_core.models import LanguageModel
+
 from .utils import (
     get_translation_languages,
     get_translation_languages_enum,
@@ -16,9 +18,45 @@ logger = logging.getLogger("django")
 
 
 def clone_field_without_unique(field):
+    """
+    Clone a concrete field but strip its unique constraint.
+    Used when copying source fields to translation models.
+    """
     assert not field.is_relation
     name, path, args, kwargs = field.deconstruct()
     kwargs.pop("unique", None)
+    return field.__class__(name=name, *args, **kwargs)
+
+
+def clone_field_without_unique(field):
+    """
+    Clone a concrete Django model field, removing the unique constraint,
+    while preserving all other options (default, choices, validators, etc.).
+
+    Args:
+        field (models.Field): A concrete, non-relational field to clone.
+
+    Returns:
+        models.Field: A copy of the original field without unique=True.
+    """
+    assert not field.is_relation, "clone_field_without_unique cannot copy relational fields"
+
+    # Deconstruct gives us everything needed to reconstruct the field
+    name, path, args, kwargs = field.deconstruct()
+
+    # Warn if the source field had unique=True.
+    if "unique" in kwargs and kwargs["unique"]:
+        logger.warning(
+            f"Field '{field.name}' had unique=True; removing uniqueness for translation model."
+        )
+
+    # Remove unique constraint explicitly
+    kwargs.pop("unique", None)
+
+    # Optional: keep the original name; Django will set it via attrs[field_name] anyway
+    kwargs["name"] = name
+
+    # Reconstruct the field with all original options minus unique
     return field.__class__(*args, **kwargs)
 
 
@@ -192,7 +230,7 @@ class TranslationBase(ModelBase):
         # Inner Meta class from the model body (not Model._meta).
         meta_class = attrs.setdefault("Meta", type("Meta", (), {}))
 
-        # Exit if subclass is an abstact model.
+        # Exit if subclass is an abstract model.
         if getattr(meta_class, "abstract", False):
             return super_new(mcls, name, bases, attrs, **kwargs)
 
@@ -211,6 +249,9 @@ class TranslationBase(ModelBase):
             raise ImproperlyConfigured("attr: source_model is required.")
         if not issubclass(source_model, TranslationSourceModel):
             raise ValueError("Source model must subclass TranslationSourceModel.")
+
+        # language field name
+        language_field = LanguageModel.LANGUAGE_FIELD_NAME
 
         # Resolve source_name.
         source_name = attrs.get("source_name")
@@ -263,40 +304,50 @@ class TranslationBase(ModelBase):
                 # Add the copied field to the translation model attributes.
                 attrs[field_name] = field_copy
 
-        # Make language and source unique together
-        constraints = list(getattr(meta_class, "constraints", []))
-
-
         # Constraints
 
         # label prefixes for constraints
-		app_label = source_model._meta.app_label
-		translation_model_name = name.lower()
+        app_label = source_model._meta.app_label
+        translation_model_name = name.lower()
+
+        # Start with existing constraints defined on Meta
+        constraints = list(getattr(meta_class, "constraints", []))
 
         # Invariant constraint:
         # One translation per language per source.
         # This is always required.
         constraints.append(
             models.UniqueConstraint(
-                fields=["language", source_name],
+                fields=[language_field, source_name],
                 name=f"{app_label}_{translation_model_name}_language_source_unique",
             )
         )
 
-        # ----------------------------------------
-        # Optional URL-scoped uniqueness
-        # ----------------------------------------
+        # Optional URL-scoped constraint:
 
-        translation_unique_fields = attrs.get("translation_unique_fields", [])
-        translation_scope_fields = attrs.get("translation_scope_fields", [])
+        translation_unique_fields = list(attrs.get("translation_unique_fields", []))
+        translation_scope_fields = list(attrs.get("translation_scope_fields", []))
 
-        # If unique fields are defined, build scoped uniqueness constraint
+        # Validate translation_scope_fields
+        for field in translation_scope_fields:
+            if (
+                field == language_field
+                or field == source_name
+                or field.startswith(f"{source_name}__")
+            ):
+                raise ImproperlyConfigured(
+                    f"'{field}' is automatically included in the base constraint "
+                    f"({language_field}, {source_name}) and should not be "
+                    "included in translation_scope_fields."
+                )
+
+        # Optional scoped uniqueness constraint
         if translation_unique_fields:
-
-            # Final constraint fields:
-            # language + scope fields + unique fields
+            # scoped_fields = language + optional scope fields (e.g., author)
+            #               + unique fields (e.g., slug)
+            # language is always included to scope uniqueness per language
             scoped_fields = (
-                ["language"]
+                [language_field]
                 + translation_scope_fields
                 + translation_unique_fields
             )
@@ -309,7 +360,6 @@ class TranslationBase(ModelBase):
             )
 
         meta_class.constraints = constraints
-
         new_cls = super_new(mcls, name, bases, attrs, **kwargs)
 
         # Register the translation model on the source model.
@@ -338,6 +388,21 @@ class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
     # The name of the generated foreign key referring to the source model.
     # If this is changed, it must be done so BEFORE migrations are made.
     source_name = _DEFAULT_SOURCE_NAME
+
+    # Unique-per-language fields 
+
+    # Important:
+    # This does NOT replace the core (language, source) constraint,
+    # which guarantees one translation per language per source post.
+
+    # Fields that must be unique within a language (e.g., slug).
+    # Example: the slug in /<language>/blog/<slug>
+    translation_unique_fields = []
+
+    # Additional fields used to scope URL-level uniqueness (e.g., author, username, category).
+    # Example: the username in /<language>/blog/<username>/<slug>
+    # Keep empty if tranlastion_unique_fields are to be global within language.
+    translation_scope_fields = [] 
 
     class Meta:
         abstract = True

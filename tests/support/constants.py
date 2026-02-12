@@ -9,3 +9,6 @@ TEST_LANGUAGES = [
     (LANG_ES, _("Spanish")),
     (LANG_DE, _("German")),
 ]
+
+TEST_APP_LABEL = "test_django_nublado_translation"
+
