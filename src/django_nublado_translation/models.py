@@ -178,6 +178,12 @@ class TranslationBase(ModelBase):
     - Copies translatable fields from the source model.
     - Applies language-scoped uniqueness constraints.
     - Registers the translation model on the source model as `_translation_model`
+
+    Note: 
+    The only automatic language constraint by default is (language, source), one translation per language per source.
+    Developers must explicitly specify the fields to be included in the language constraints (e.g, slug).
+    Previously, unique fields in the source model were automatically made unique-per-language in the translation model
+    in a global scope. Now, these unique-per-languages must be specified. See TranslationModel. 
     """
 
     def __new__(mcls, name, bases, attrs, **kwargs):
@@ -226,8 +232,7 @@ class TranslationBase(ModelBase):
         translation_fields = getattr(source_model, "translated_fields", [])
 
         if translation_fields:
-            source_fields = {f.name: f for f in source_model._meta.concrete_fields}
-            unique_fields = []
+            source_fields = {field.name: field for field in source_model._meta.concrete_fields}
 
             for field_name in translation_fields:
                 # Raise an exception if the translation model has an attribute
@@ -253,11 +258,7 @@ class TranslationBase(ModelBase):
                     )
 
                 # Copy field to translation model.
-
                 field_copy = clone_field_without_unique(source_field)
-
-                if source_field.unique:
-                    unique_fields.append(field_name)
 
                 # Add the copied field to the translation model attributes.
                 attrs[field_name] = field_copy
@@ -265,9 +266,16 @@ class TranslationBase(ModelBase):
         # Make language and source unique together
         constraints = list(getattr(meta_class, "constraints", []))
 
-        # One translation per language per source
-	app_label = source_model._meta.app_label
-        translation_model_name = name.lower()
+
+        # Constraints
+
+        # label prefixes for constraints
+		app_label = source_model._meta.app_label
+		translation_model_name = name.lower()
+
+        # Invariant constraint:
+        # One translation per language per source.
+        # This is always required.
         constraints.append(
             models.UniqueConstraint(
                 fields=["language", source_name],
@@ -275,19 +283,36 @@ class TranslationBase(ModelBase):
             )
         )
 
-        # Unique fields from source unique per language
-        for field in unique_fields:
+        # ----------------------------------------
+        # Optional URL-scoped uniqueness
+        # ----------------------------------------
+
+        translation_unique_fields = attrs.get("translation_unique_fields", [])
+        translation_scope_fields = attrs.get("translation_scope_fields", [])
+
+        # If unique fields are defined, build scoped uniqueness constraint
+        if translation_unique_fields:
+
+            # Final constraint fields:
+            # language + scope fields + unique fields
+            scoped_fields = (
+                ["language"]
+                + translation_scope_fields
+                + translation_unique_fields
+            )
+
             constraints.append(
                 models.UniqueConstraint(
-                    fields=["language", field],
-                    name=f"{app_label}_{translation_model_name}_language_{field}_unique",
+                    fields=scoped_fields,
+                    name=f"{app_label}_{translation_model_name}_scoped_unique",
                 )
             )
+
         meta_class.constraints = constraints
 
         new_cls = super_new(mcls, name, bases, attrs, **kwargs)
 
-        # Register the translation model on the source model
+        # Register the translation model on the source model.
         source_model._translation_model = new_cls
 
         return new_cls
