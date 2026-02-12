@@ -16,6 +16,8 @@ from .support.models import (
     TranslationTestModel,
     CustomSourceTestModel,
     CustomTranslationTestModel,
+    ScopedSourceTestModel,
+    ScopedTranslationTestModel,
 )
 from .support.constants import TEST_LANGUAGES, TEST_APP_LABEL, LANG_EN, LANG_ES, LANG_DE
 
@@ -242,6 +244,7 @@ class TestTranslationSourceModel(TestModelSetup):
         languages = source.get_available_translation_languages()
         assert languages == []
 
+
 @pytest.mark.django_db(transaction=True)
 class TestTranslationModel(TestModelSetup):
     """
@@ -251,15 +254,9 @@ class TestTranslationModel(TestModelSetup):
     source_model = TranslationSourceTestModel
     translation_model = TranslationTestModel
 
-    custom_source_model = CustomSourceTestModel
-    # Customized source_name and translations_name
-    custom_translation_model = CustomTranslationTestModel
-
     test_models = [
         source_model,
-        custom_source_model,
         translation_model,
-        custom_translation_model,
     ]
 
     def test_default_attrs(self):
@@ -320,10 +317,8 @@ class TestTranslationModel(TestModelSetup):
         with pytest.raises(IntegrityError) as excinfo:
             translation_1.save()
 
-
     def test_unique_constraints(self):
         constraints = self.translation_model._meta.constraints
-        print(constraints)
 
         expected_name = f"{TEST_APP_LABEL}_{TranslationTestModel.__name__.lower()}_scoped_unique"
         assert any(
@@ -342,24 +337,6 @@ class TestTranslationModel(TestModelSetup):
             and c.name == expected_name
             for c in constraints
         ), f"Missing expected UniqueConstraint: {expected_name}"
-
-    def test_unique_constraints_with_further_scope(self):
-        assert False
-
-    def test_unique_constrants_for_custom_source_name(self):
-        # A TranslationModel with a different name for the source field, "parent" in this example.
-        custom_constraints = self.custom_translation_model._meta.constraints
-
-        assert any(
-            isinstance(c, models.UniqueConstraint)
-            and set(c.fields) == {"language", "parent"}
-            for c in custom_constraints
-        )
-        assert any(
-            isinstance(c, models.UniqueConstraint)
-            and set(c.fields) == {"language", "slug"}
-            for c in custom_constraints
-        )
 
     def test_default_source_name(self):
         source = self.source_model.objects.create(
@@ -380,24 +357,6 @@ class TestTranslationModel(TestModelSetup):
         # Reverse relation exists
         assert translation in source.translations.all()
 
-    def test_custom_source_name(self):
-        source = self.custom_source_model.objects.create(
-            name="foo",
-            slug="foo",
-        )
-
-        translation = self.custom_translation_model.objects.create(
-            parent=source,
-            language=LANG_ES,
-            name="bar",
-            slug="bar",
-        )
-
-        # Custom source fk: "parent"
-        assert hasattr(translation, "parent")
-        assert translation.parent == source
-        assert not hasattr(translation, "source")
-
     def test_default_translations_name(self):
         source = self.source_model.objects.create(
             name="foo",
@@ -412,3 +371,73 @@ class TestTranslationModel(TestModelSetup):
 
         assert hasattr(source, "translations")
         assert translation in source.translations.all()
+
+
+@pytest.mark.django_db(transaction=True)
+class TestScopedTranslationModel(TestModelSetup):
+    source_model = ScopedSourceTestModel
+    translation_model = ScopedTranslationTestModel
+
+    test_models = [
+        source_model,
+        translation_model,
+    ]
+
+    def test_scoped_unique_constraints(self):
+        """
+        Scoped constraint with "test_scoped_field" in translation_scope_fields.
+        """
+        constraints = self.translation_model._meta.constraints
+
+        expected_name = f"{TEST_APP_LABEL}_{ScopedTranslationTestModel.__name__.lower()}_scoped_unique"
+        assert any(
+            isinstance(c, models.UniqueConstraint)
+            and set(c.fields) == {"language", "test_scoped_field", "slug"}
+            and c.name == expected_name
+            for c in constraints
+        ), f"Missing expected UniqueConstraint: {expected_name}"
+
+
+@pytest.mark.django_db(transaction=True)
+class TestCustomTranslationModel(TestModelSetup):
+    source_model = CustomSourceTestModel
+    translation_model = CustomTranslationTestModel
+
+    test_models = [
+        source_model,
+        translation_model,
+    ]
+
+    def test_custom_source_name(self):
+        source = self.source_model.objects.create(
+            name="foo",
+            slug="foo",
+        )
+
+        translation = self.translation_model.objects.create(
+            parent=source,
+            language=LANG_ES,
+            name="bar",
+            slug="bar",
+        )
+
+        # Custom source fk: "parent"
+        assert hasattr(translation, "parent")
+        assert translation.parent == source
+        assert not hasattr(translation, "source")
+        assert not hasattr(translation, TranslationModel._DEFAULT_SOURCE_NAME)
+
+    def test_unique_constrants_for_custom_source_name(self):
+        # A TranslationModel with custom "parent"  source field name.
+        constraints = self.translation_model._meta.constraints
+
+        assert any(
+            isinstance(c, models.UniqueConstraint)
+            and set(c.fields) == {"language", "parent"}
+            for c in constraints
+        )
+        assert any(
+            isinstance(c, models.UniqueConstraint)
+            and set(c.fields) == {"language", "slug"}
+            for c in constraints
+        )

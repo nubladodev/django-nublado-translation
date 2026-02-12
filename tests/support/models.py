@@ -92,6 +92,10 @@ class CustomSourceTestModel(TranslationSourceModel):
 
 
 class CustomTranslationTestModel(TranslationModel):
+    """
+    TranslationModel with "parent" as source fk.
+    """
+
     source_model = CustomSourceTestModel
     # Set custom source fk name.
     source_name = "parent"
@@ -103,4 +107,31 @@ class CustomTranslationTestModel(TranslationModel):
 
     class Meta:
         db_table = "test_custom_translation_model"
+        app_label = TEST_APP_LABEL
+
+
+class ScopedSourceTestModel(TranslationSourceModel):
+    name = models.CharField(max_length=250)
+    slug = models.SlugField(max_length=250, unique=True)
+    translated_fields = ["name", "slug"]
+
+    class Meta:
+        db_table = "test_scoped_translation_source_model"
+        app_label = TEST_APP_LABEL
+
+
+class ScopedTranslationTestModel(TranslationModel):
+    source_model = ScopedSourceTestModel
+    # Set custom source fk name.
+    source_name = "parent"
+
+    test_scoped_field = models.CharField(max_length=250)
+
+    translation_unique_fields = ["slug"]
+    translation_scope_fields = ["test_scoped_field"]
+
+    objects = TranslationManager()
+
+    class Meta:
+        db_table = "test_scoped_translation_model"
         app_label = TEST_APP_LABEL
