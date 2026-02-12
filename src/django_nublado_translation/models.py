@@ -253,12 +253,6 @@ class TranslationBase(ModelBase):
                     )
 
                 # Copy field to translation model.
-                #field_copy = copy.deepcopy(source_field)
-
-                # Handle unique fields by making them unique per language.
-                # if field_copy.unique:
-                #     field_copy.unique = False
-                #     field_copy._unique = False   # ← REQUIRED
 
                 field_copy = clone_field_without_unique(source_field)
 
@@ -272,11 +266,12 @@ class TranslationBase(ModelBase):
         constraints = list(getattr(meta_class, "constraints", []))
 
         # One translation per language per source
-        translation_table = name.lower()
+	app_label = source_model._meta.app_label
+        translation_model_name = name.lower()
         constraints.append(
             models.UniqueConstraint(
                 fields=["language", source_name],
-                name=f"{translation_table}_language_source_unique",
+                name=f"{app_label}_{translation_model_name}_language_source_unique",
             )
         )
 
@@ -285,7 +280,7 @@ class TranslationBase(ModelBase):
             constraints.append(
                 models.UniqueConstraint(
                     fields=["language", field],
-                    name=f"{translation_table}_language_{field}_unique",
+                    name=f"{app_label}_{translation_model_name}_language_{field}_unique",
                 )
             )
         meta_class.constraints = constraints
