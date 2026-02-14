@@ -29,20 +29,20 @@ class TestModelSetup:
             schema_editor.connection.in_atomic_block = True
 
 
-class TranslationLanguageTestModel(TranslationLanguageModel):
+class TranslationLanguage(TranslationLanguageModel):
     """
-    This is a test model that subclasses the
+    A test model that subclasses the
     abstract model LanguageModel.
     """
 
     name = models.CharField(max_length=200, unique=True)
 
     class Meta(TranslationLanguageModel.Meta):
-        db_table = "test_translation_language_model"
+        db_table = "test_translation_language"
         app_label = TEST_APP_LABEL
 
 
-class TranslationSourceTestModel(
+class Article(
     TranslationSourceModel,
 ):
     """
@@ -56,18 +56,18 @@ class TranslationSourceTestModel(
     objects = TranslationSourceManager()
 
     class Meta:
-        db_table = "test_translation_source_model"
+        db_table = "test_article"
         app_label = TEST_APP_LABEL
 
 
-class TranslationTestModel(
+class ArticleTranslation(
     TranslationModel,
 ):
     """
     A test model that subclasses TranslationModel
     """
 
-    source_model = TranslationSourceTestModel
+    source_model = Article
 
     translation_unique_fields = ["slug"]
     translation_scope_fields = []
@@ -75,28 +75,28 @@ class TranslationTestModel(
     objects = TranslationManager()
 
     class Meta(TranslationModel.Meta):
-        db_table = "test_translation_model"
+        db_table = "test_article_translation"
         app_label = TEST_APP_LABEL
 
 
 # The following pair of test models are to demonstrate how you
 # can set the name of the source model fk before migrations to avoid possible collisions.
-class CustomSourceTestModel(TranslationSourceModel):
+class CustomArticle(TranslationSourceModel):
     name = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250, unique=True)
     translated_fields = ["name", "slug"]
 
     class Meta:
-        db_table = "test_custom_translation_source_model"
+        db_table = "test_custom_article"
         app_label = TEST_APP_LABEL
 
 
-class CustomTranslationTestModel(TranslationModel):
+class CustomArticleTranslation(TranslationModel):
     """
     TranslationModel with "parent" as source fk.
     """
 
-    source_model = CustomSourceTestModel
+    source_model = CustomArticle
     # Set custom source fk name.
     source_name = "parent"
 
@@ -106,22 +106,22 @@ class CustomTranslationTestModel(TranslationModel):
     objects = TranslationManager()
 
     class Meta:
-        db_table = "test_custom_translation_model"
+        db_table = "test_custom_article_translation"
         app_label = TEST_APP_LABEL
 
 
-class ScopedSourceTestModel(TranslationSourceModel):
+class ScopedArticle(TranslationSourceModel):
     name = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250, unique=True)
     translated_fields = ["name", "slug"]
 
     class Meta:
-        db_table = "test_scoped_translation_source_model"
+        db_table = "test_scoped_article"
         app_label = TEST_APP_LABEL
 
 
-class ScopedTranslationTestModel(TranslationModel):
-    source_model = ScopedSourceTestModel
+class ScopedArticleTranslation(TranslationModel):
+    source_model = ScopedArticle
     # Set custom source fk name.
     source_name = "parent"
 
@@ -133,5 +133,5 @@ class ScopedTranslationTestModel(TranslationModel):
     objects = TranslationManager()
 
     class Meta:
-        db_table = "test_scoped_translation_model"
+        db_table = "test_scoped_article_translation"
         app_label = TEST_APP_LABEL

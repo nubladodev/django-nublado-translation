@@ -11,13 +11,13 @@ from django_nublado_translation.models import (
 
 from .support.models import (
     TestModelSetup,
-    TranslationLanguageTestModel,
-    TranslationSourceTestModel,
-    TranslationTestModel,
-    CustomSourceTestModel,
-    CustomTranslationTestModel,
-    ScopedSourceTestModel,
-    ScopedTranslationTestModel,
+    TranslationLanguage,
+    Article,
+    ArticleTranslation,
+    CustomArticle,
+    CustomArticleTranslation,
+    ScopedArticle,
+    ScopedArticleTranslation,
 )
 from .support.constants import TEST_LANGUAGES, TEST_APP_LABEL, LANG_EN, LANG_ES, LANG_DE
 
@@ -29,9 +29,12 @@ def _test_languages(set_django_setting):
 
 # Tests
 @pytest.mark.django_db(transaction=True)
-class TestTranslationLanguageModel(TestModelSetup):
+class TestTranslationLanguag(TestModelSetup):
+    """
+    Tests for the abstract model TranslationLanguageModel.
+    """
 
-    translation_language_model = TranslationLanguageTestModel
+    translation_language_model = TranslationLanguage
     test_models = [translation_language_model]
 
     def test_language_choices(self, translation_app_settings):
@@ -70,13 +73,13 @@ class TestTranslationLanguageModel(TestModelSetup):
 
 
 @pytest.mark.django_db(transaction=True)
-class TestTranslationSourceModel(TestModelSetup):
+class TestArticle(TestModelSetup):
     """
     Tests for the abstract model TranslationSourceModel
     """
 
-    source_model = TranslationSourceTestModel
-    translation_model = TranslationTestModel
+    source_model = Article
+    translation_model = ArticleTranslation
 
     test_models = [
         source_model,
@@ -246,13 +249,13 @@ class TestTranslationSourceModel(TestModelSetup):
 
 
 @pytest.mark.django_db(transaction=True)
-class TestTranslationModel(TestModelSetup):
+class TestArticleTranslation(TestModelSetup):
     """
-    Tests for the abstract model TranslationSourceModel
+    Tests for the abstract model TranslationModel
     """
 
-    source_model = TranslationSourceTestModel
-    translation_model = TranslationTestModel
+    source_model = Article
+    translation_model = ArticleTranslation
 
     test_models = [
         source_model,
@@ -320,7 +323,7 @@ class TestTranslationModel(TestModelSetup):
     def test_unique_constraints(self):
         constraints = self.translation_model._meta.constraints
 
-        expected_name = f"{TEST_APP_LABEL}_{TranslationTestModel.__name__.lower()}_scoped_unique"
+        expected_name = f"{TEST_APP_LABEL}_{self.translation_model.__name__.lower()}_scoped_unique"
         assert any(
             isinstance(c, models.UniqueConstraint)
             and set(c.fields) == {"language", "slug"}
@@ -329,7 +332,7 @@ class TestTranslationModel(TestModelSetup):
         ), f"Missing expected UniqueConstraint: {expected_name}"
 
         expected_name = (
-            f"{TEST_APP_LABEL}_{TranslationTestModel.__name__.lower()}_language_source_unique"
+            f"{TEST_APP_LABEL}_{self.translation_model.__name__.lower()}_language_source_unique"
         )
         assert any(
             isinstance(c, models.UniqueConstraint)
@@ -374,9 +377,12 @@ class TestTranslationModel(TestModelSetup):
 
 
 @pytest.mark.django_db(transaction=True)
-class TestScopedTranslationModel(TestModelSetup):
-    source_model = ScopedSourceTestModel
-    translation_model = ScopedTranslationTestModel
+class TestScopedArticleTranslation(TestModelSetup):
+    """
+    Tests for the abstract model TranslationModel with scoped constraints.
+    """
+    source_model = ScopedArticle
+    translation_model = ScopedArticleTranslation
 
     test_models = [
         source_model,
@@ -389,7 +395,7 @@ class TestScopedTranslationModel(TestModelSetup):
         """
         constraints = self.translation_model._meta.constraints
 
-        expected_name = f"{TEST_APP_LABEL}_{ScopedTranslationTestModel.__name__.lower()}_scoped_unique"
+        expected_name = f"{TEST_APP_LABEL}_{self.translation_model.__name__.lower()}_scoped_unique"
         assert any(
             isinstance(c, models.UniqueConstraint)
             and set(c.fields) == {"language", "test_scoped_field", "slug"}
@@ -399,9 +405,9 @@ class TestScopedTranslationModel(TestModelSetup):
 
 
 @pytest.mark.django_db(transaction=True)
-class TestCustomTranslationModel(TestModelSetup):
-    source_model = CustomSourceTestModel
-    translation_model = CustomTranslationTestModel
+class TestCustomArticleTranslation(TestModelSetup):
+    source_model = CustomArticle
+    translation_model = CustomArticleTranslation
 
     test_models = [
         source_model,

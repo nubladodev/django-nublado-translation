@@ -378,7 +378,7 @@ class TranslationModel(TranslationLanguageModel, metaclass=TranslationBase):
     - source_model: a subclass of TranslationSourceModel
     """
 
-    # Do NOT change these.
+    # Do NOT change this.
     _DEFAULT_SOURCE_NAME = "source"
 
     # The source model to be translated.

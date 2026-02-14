@@ -5,15 +5,15 @@ from django.utils.translation import activate
 
 from .support.models import (
     TestModelSetup,
-    TranslationSourceTestModel,
-    TranslationTestModel,
+    Article,
+    ArticleTranslation,
 )
 from .support.constants import LANG_ES, LANG_DE
 
 
 @pytest.fixture
 def source():
-    source = TranslationSourceTestModel.objects.create(
+    source = Article.objects.create(
         name="foo foo",
         slug="foo-foo",
     )
@@ -22,7 +22,7 @@ def source():
 
 @pytest.fixture
 def translation_es(source):
-    translation_es = TranslationTestModel.objects.create(
+    translation_es = ArticleTranslation.objects.create(
         source=source,
         language=LANG_ES,
         name="fee fee",
@@ -33,7 +33,7 @@ def translation_es(source):
 
 @pytest.fixture
 def translation_de(source):
-    translation_de = TranslationTestModel.objects.create(
+    translation_de = ArticleTranslation.objects.create(
         source=source,
         language=LANG_DE,
         name="faa faa",
@@ -44,8 +44,8 @@ def translation_de(source):
 
 @pytest.mark.django_db(transaction=True)
 class TestTranslationSourceManager(TestModelSetup):
-    source_model = TranslationSourceTestModel
-    translation_model = TranslationTestModel
+    source_model = Article
+    translation_model = ArticleTranslation
     test_models = [source_model, translation_model]
 
     def test_prefetch_translations_no_queryset(self, source, translation_es, translation_de):
@@ -114,8 +114,8 @@ class TestTranslationSourceManager(TestModelSetup):
 
 @pytest.mark.django_db(transaction=True)
 class TestTranslationManager(TestModelSetup):
-    source_model = TranslationSourceTestModel
-    translation_model = TranslationTestModel
+    source_model = Article
+    translation_model = ArticleTranslation
     test_models = [source_model, translation_model]
 
     def test_with_source(self, translation_es):
