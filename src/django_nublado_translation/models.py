@@ -19,17 +19,6 @@ logger = logging.getLogger("django")
 
 def clone_field_without_unique(field):
     """
-    Clone a concrete field but strip its unique constraint.
-    Used when copying source fields to translation models.
-    """
-    assert not field.is_relation
-    name, path, args, kwargs = field.deconstruct()
-    kwargs.pop("unique", None)
-    return field.__class__(name=name, *args, **kwargs)
-
-
-def clone_field_without_unique(field):
-    """
     Clone a concrete Django model field, removing the unique constraint,
     while preserving all other options (default, choices, validators, etc.).
 
@@ -46,7 +35,7 @@ def clone_field_without_unique(field):
 
     # Warn if the source field had unique=True.
     if "unique" in kwargs and kwargs["unique"]:
-        logger.warning(
+        logger.debug(
             f"Field '{field.name}' had unique=True; removing uniqueness for translation model."
         )
 

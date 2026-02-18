@@ -18,10 +18,3 @@ def translation_app_settings():
     app_settings._data = None
     return app_settings
 
-
-@pytest.fixture
-def set_django_setting(monkeypatch):
-    def _func(name, value):
-        monkeypatch.setattr(settings, name, value, raising=False)
-
-    return _func
