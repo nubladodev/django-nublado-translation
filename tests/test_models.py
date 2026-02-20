@@ -23,8 +23,8 @@ from .support.constants import TEST_LANGUAGES, TEST_APP_LABEL, LANG_EN, LANG_ES,
 
 
 @pytest.fixture(autouse=True)
-def _test_languages(set_django_setting):
-    set_django_setting("LANGUAGES", TEST_LANGUAGES)
+def _test_languages(settings):
+    settings.LANGUAGES = TEST_LANGUAGES
 
 
 # Tests
