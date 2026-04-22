@@ -2,7 +2,7 @@ import pytest
 
 from django.db import models, IntegrityError
 from django.core.exceptions import ValidationError
-from django.utils.translation import activate, gettext_lazy as _
+from django.utils.translation import activate
 
 from django_nublado_translation.models import (
     TranslationModel,
@@ -19,7 +19,7 @@ from .support.models import (
     ScopedArticle,
     ScopedArticleTranslation,
 )
-from .support.constants import TEST_LANGUAGES, TEST_APP_LABEL, LANG_EN, LANG_ES, LANG_DE
+from .support.constants import TEST_LANGUAGES, TEST_APP_LABEL, LANG_ES, LANG_DE
 
 
 @pytest.fixture(autouse=True)

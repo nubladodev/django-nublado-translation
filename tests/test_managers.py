@@ -1,7 +1,6 @@
 import pytest
 
 from django.db.models import Manager
-from django.utils.translation import activate
 
 from .support.models import (
     TestModelSetup,

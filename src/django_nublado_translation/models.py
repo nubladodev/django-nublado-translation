@@ -1,11 +1,9 @@
-import copy
 import logging
 
 from django.db import models
 from django.db.models.base import ModelBase
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import get_language, gettext_lazy as _
-from django.utils.functional import cached_property
 
 from django_nublado_core.models import LanguageModel
 

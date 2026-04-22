@@ -1,6 +1,4 @@
-import pytest
 
-from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
 from django_nublado_translation.utils import (
@@ -8,7 +6,7 @@ from django_nublado_translation.utils import (
     get_translation_languages_enum,
 )
 
-from .support.constants import TEST_LANGUAGES, LANG_EN, LANG_ES, LANG_DE
+from .support.constants import LANG_EN, LANG_ES, LANG_DE
 
 
 def assert_enum_correct(enum, source_language):
