@@ -9,8 +9,6 @@ from django_nublado_translation.models import (
 from django_nublado_translation.managers import TranslationSourceManager, TranslationManager
 from.constants import TEST_APP_LABEL
 
-TEST_APP_LABEL = "test_django_nublado_translation"
-
 
 class TestModelSetup:
     test_models = []
