@@ -29,7 +29,7 @@ def _test_languages(settings):
 
 # Tests
 @pytest.mark.django_db(transaction=True)
-class TestTranslationLanguag(TestModelSetup):
+class TestTranslationLanguage(TestModelSetup):
     """
     Tests for the abstract model TranslationLanguageModel.
     """
