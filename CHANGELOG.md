@@ -1,5 +1,9 @@
-## [0.3.0] - 2026-02-09
 
+## [0.2.1] - 2026-06-21
+
+### Changed
+
+- Updated dependency requirement to `django-nublado-core >=0.4.2, <0.5.0`.
 
 
 ## [0.2.0] – 2026-02-08
